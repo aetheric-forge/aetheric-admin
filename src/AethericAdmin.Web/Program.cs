@@ -7,7 +7,14 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using MongoDB.Bson;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
+
+// MongoDB.Driver 3.x removed its old implicit Guid-serialization default - without this, every
+// write of a Guid Id (JobDefinition, SshCredential) throws "GuidSerializer cannot serialize a Guid
+// when GuidRepresentation is Unspecified." Must run before any Mongo store is constructed.
+BsonSerializer.RegisterSerializer(new MongoDB.Bson.Serialization.Serializers.GuidSerializer(GuidRepresentation.Standard));
 
 var builder = WebApplication.CreateBuilder(args);
 

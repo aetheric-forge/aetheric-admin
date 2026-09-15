@@ -10,6 +10,7 @@
     <ProjectReference Include="..\..\runtime\src\Services\AethericForge.Runtime.Services.Maintenance\AethericForge.Runtime.Services.Maintenance.csproj" />
     <ProjectReference Include="..\..\runtime\src\Services\AethericForge.Runtime.Services.Staging\AethericForge.Runtime.Services.Staging.csproj" />
     <ProjectReference Include="..\..\runtime\src\Providers\AethericForge.Runtime.Providers.Staging.InMemory\AethericForge.Runtime.Providers.Staging.InMemory.csproj" />
+    <ProjectReference Include="..\..\contracts\src\AethericContracts.Membership\AethericContracts.Membership.csproj" />
   </ItemGroup>
 
   <ItemGroup>

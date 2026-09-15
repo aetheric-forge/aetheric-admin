@@ -1,3 +1,6 @@
 [submodule "runtime"]
 	path = runtime
 	url = https://github.com/aetheric-forge/aetheric-runtime.git
+[submodule "contracts"]
+	path = contracts
+	url = https://github.com/aetheric-forge/aetheric-contracts.git

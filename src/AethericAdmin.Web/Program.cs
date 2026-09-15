@@ -2,6 +2,7 @@ using AethericAdmin.Web.Components;
 using AethericAdmin.Web.Hosting;
 using AethericAdmin.Web.Maintenance;
 using AethericAdmin.Web.Maintenance.Jobs;
+using AethericContracts.Membership;
 using AethericForge.Runtime.Abstractions.Interfaces.Maintenance.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -73,6 +74,21 @@ builder.Services.AddSingleton<IJobDefinitionStore, MongoJobDefinitionStore>();
 builder.Services.AddSingleton<IJobExecutor, SshJobExecutor>();
 builder.Services.AddSingleton<IJobExecutor, CodeJobExecutor>();
 builder.Services.AddSingleton<JobDispatcher>();
+
+// Shared with aetheric-web via the aetheric-contracts submodule - aetheric-web creates
+// applications through the public Join Campus form, this app reads/flags them.
+var membershipMongoUrl = MongoUrl.Create(
+    ForgeCampusExtensions.BuildMongoUri(
+        InstitutionServiceConfiguration.Resolve(builder.Configuration, "Membership", "MongoDb")));
+builder.Services.AddKeyedSingleton<IMongoClient>(
+    "Membership",
+    (_, _) => new MongoClient(membershipMongoUrl));
+builder.Services.AddKeyedSingleton<IMongoDatabase>(
+    "Membership",
+    (sp, _) => sp.GetRequiredKeyedService<IMongoClient>("Membership").GetDatabase(membershipMongoUrl.DatabaseName));
+builder.Services.AddSingleton<IMembershipApplicationStore, MongoMembershipApplicationStore>();
+builder.Services.AddSingleton<IMaintenanceWorker, StaleMembershipApplicationsWorker>();
+
 builder.Services.AddHostedService<MaintenanceDispatchService>();
 
 var app = builder.Build();

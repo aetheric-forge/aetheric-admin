@@ -1,0 +1,246 @@
+@page "/maintenance/jobs"
+@rendermode InteractiveServer
+@using AethericForge.Runtime.Institutions.Campus
+@using AethericForge.Runtime.Institutions.Maintenance
+@using AethericAdmin.Web.Hosting
+@using AethericAdmin.Web.Maintenance.Jobs
+@inject ICampus Campus
+@inject IJobDefinitionStore JobDefinitionStore
+@inject ICredentialStore CredentialStore
+@inject JobDispatcher JobDispatcher
+
+<PageTitle>Maintenance Jobs</PageTitle>
+
+<main class="container py-5">
+    <p class="text-uppercase">Operations Faculty</p>
+    <h1>Maintenance jobs</h1>
+    <p class="text-muted">
+        Ad-hoc or scheduled (cron) jobs, run over SSH or as in-process code. Outcomes show up on the
+        <a href="/maintenance">run history page</a>. SSH credentials are managed
+        <a href="/maintenance/credentials">here</a>. A scheduled run against a
+        passphrase-protected private key will fail with no one there to supply the passphrase - use
+        "Run now" for those instead.
+    </p>
+
+    @if (_error is not null)
+    {
+        <div class="alert alert-danger">@_error</div>
+    }
+
+    @if (_jobs is null)
+    {
+        <p>Loading jobs…</p>
+    }
+    else if (_jobs.Count == 0)
+    {
+        <div class="alert alert-secondary">No job definitions yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive mb-4">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Kind</th>
+                        <th>Schedule</th>
+                        <th>Enabled</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var job in _jobs)
+                    {
+                        <tr>
+                            <td>
+                                @job.Name
+                                @if (job.Kind == JobDefinitionKind.Ssh && job.Ssh is not null)
+                                {
+                                    <div class="small text-muted">@job.Ssh.Host:@job.Ssh.Port &middot; <code>@job.Ssh.Command</code></div>
+                                }
+                                else if (job.Kind == JobDefinitionKind.Code && job.Code is not null)
+                                {
+                                    <div class="small text-muted"><code>@job.Code.TypeName.@job.Code.MethodName</code></div>
+                                }
+                            </td>
+                            <td>@job.Kind</td>
+                            <td class="small text-muted">@(job.CronSchedule ?? "Ad-hoc only")</td>
+                            <td>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" checked="@job.Enabled"
+                                           @onchange="e => SetEnabledAsync(job.Id, (bool)e.Value!)" />
+                                </div>
+                            </td>
+                            <td class="text-end">
+                                <button class="btn btn-sm btn-outline-primary" disabled="@(_runningJobId == job.Id)"
+                                        @onclick="() => RunNowAsync(job)">
+                                    @(_runningJobId == job.Id ? "Running…" : "Run now")
+                                </button>
+                                <button class="btn btn-sm btn-outline-danger" @onclick="() => DeleteAsync(job.Id)">Delete</button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+
+    <h2 class="h4">Add a job</h2>
+    <EditForm Model="_form" OnValidSubmit="AddAsync" class="d-grid gap-3" style="max-width: 40rem;">
+        <div>
+            <label class="form-label" for="job-name">Name</label>
+            <InputText id="job-name" class="form-control" @bind-Value="_form.Name" />
+        </div>
+        <div>
+            <label class="form-label" for="job-kind">Kind</label>
+            <InputSelect id="job-kind" class="form-select" @bind-Value="_form.Kind">
+                <option value="@JobDefinitionKind.Ssh">SSH</option>
+                <option value="@JobDefinitionKind.Code">Code (DLL)</option>
+            </InputSelect>
+        </div>
+        <div>
+            <label class="form-label" for="job-cron">Cron schedule (leave blank for ad-hoc only)</label>
+            <InputText id="job-cron" class="form-control" placeholder="0 3 * * *" @bind-Value="_form.CronSchedule" />
+        </div>
+
+        @if (_form.Kind == JobDefinitionKind.Ssh)
+        {
+            <div>
+                <label class="form-label" for="job-credential">Credential</label>
+                <InputSelect id="job-credential" class="form-select" @bind-Value="_form.CredentialId">
+                    <option value="">Select a credential…</option>
+                    @if (_credentials is not null)
+                    {
+                        @foreach (var credential in _credentials)
+                        {
+                            <option value="@credential.Id">@credential.Name (@credential.Username)</option>
+                        }
+                    }
+                </InputSelect>
+            </div>
+            <div class="row g-3">
+                <div class="col-8">
+                    <label class="form-label" for="job-host">Host</label>
+                    <InputText id="job-host" class="form-control" @bind-Value="_form.Host" />
+                </div>
+                <div class="col-4">
+                    <label class="form-label" for="job-port">Port</label>
+                    <InputNumber id="job-port" class="form-control" @bind-Value="_form.Port" />
+                </div>
+            </div>
+            <div>
+                <label class="form-label" for="job-command">Command</label>
+                <InputText id="job-command" class="form-control" @bind-Value="_form.Command" />
+            </div>
+        }
+        else
+        {
+            <div>
+                <label class="form-label" for="job-assembly">Assembly path</label>
+                <InputText id="job-assembly" class="form-control" @bind-Value="_form.AssemblyPath" />
+            </div>
+            <div>
+                <label class="form-label" for="job-type">Type name</label>
+                <InputText id="job-type" class="form-control" @bind-Value="_form.TypeName" />
+            </div>
+            <div>
+                <label class="form-label" for="job-method">Method name</label>
+                <InputText id="job-method" class="form-control" @bind-Value="_form.MethodName" />
+                <div class="form-text">Must be <code>public static Task&lt;int&gt; MethodName(CancellationToken)</code>.</div>
+            </div>
+        }
+
+        <div>
+            <button class="btn btn-primary" type="submit">Add job</button>
+        </div>
+    </EditForm>
+</main>
+
+@code {
+    private IReadOnlyList<JobDefinition>? _jobs;
+    private IReadOnlyList<SshCredential>? _credentials;
+    private JobForm _form = new();
+    private string? _error;
+    private Guid? _runningJobId;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _credentials = await CredentialStore.ListAsync();
+        await ReloadAsync();
+    }
+
+    private async Task AddAsync()
+    {
+        _error = null;
+        try
+        {
+            SshJobConfig? ssh = null;
+            CodeJobConfig? code = null;
+
+            if (_form.Kind == JobDefinitionKind.Ssh)
+            {
+                if (!Guid.TryParse(_form.CredentialId, out var credentialId))
+                {
+                    _error = "Select a credential.";
+                    return;
+                }
+
+                ssh = new SshJobConfig(credentialId, _form.Host, _form.Port, _form.Command);
+            }
+            else
+            {
+                code = new CodeJobConfig(_form.AssemblyPath, _form.TypeName, _form.MethodName);
+            }
+
+            await JobDefinitionStore.AddAsync(_form.Name, _form.Kind, _form.CronSchedule, ssh, code);
+            _form = new JobForm();
+            await ReloadAsync();
+        }
+        catch (Exception exception) when (exception is ArgumentException or FormatException)
+        {
+            _error = exception.Message;
+        }
+    }
+
+    private async Task RunNowAsync(JobDefinition job)
+    {
+        _runningJobId = job.Id;
+        try
+        {
+            var caretaker = Campus.Resolve<IOperationsFaculty>().Resolve<IMaintenance>().Caretaker;
+            await JobDispatcher.RunAsync(caretaker, job, passphrase: null, CancellationToken.None);
+        }
+        finally
+        {
+            _runningJobId = null;
+        }
+    }
+
+    private async Task SetEnabledAsync(Guid id, bool enabled)
+    {
+        await JobDefinitionStore.SetEnabledAsync(id, enabled);
+        await ReloadAsync();
+    }
+
+    private async Task DeleteAsync(Guid id)
+    {
+        await JobDefinitionStore.DeleteAsync(id);
+        await ReloadAsync();
+    }
+
+    private async Task ReloadAsync() => _jobs = await JobDefinitionStore.ListAsync();
+
+    private sealed class JobForm
+    {
+        public string Name { get; set; } = string.Empty;
+        public JobDefinitionKind Kind { get; set; } = JobDefinitionKind.Ssh;
+        public string? CronSchedule { get; set; }
+        public string CredentialId { get; set; } = string.Empty;
+        public string Host { get; set; } = string.Empty;
+        public int Port { get; set; } = 22;
+        public string Command { get; set; } = string.Empty;
+        public string AssemblyPath { get; set; } = string.Empty;
+        public string TypeName { get; set; } = string.Empty;
+        public string MethodName { get; set; } = string.Empty;
+    }
+}

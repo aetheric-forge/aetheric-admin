@@ -1,0 +1,141 @@
+@page "/maintenance"
+@rendermode InteractiveServer
+@using AethericForge.Runtime.Abstractions.Interfaces.Maintenance.Primitives
+@using AethericForge.Runtime.Abstractions.Interfaces.Maintenance.Services
+@using AethericForge.Runtime.Institutions.Campus
+@using AethericForge.Runtime.Institutions.Maintenance
+@using AethericAdmin.Web.Hosting
+@inject ICampus Campus
+@inject IEnumerable<IMaintenanceWorker> Workers
+@inject TimeProvider TimeProvider
+
+<PageTitle>Maintenance</PageTitle>
+
+<main class="container py-5">
+    <p class="text-uppercase">Operations Faculty</p>
+    <h1>Maintenance runs</h1>
+    <p class="text-muted">Jobs run automatically every 24 hours. You can also trigger a job immediately below.</p>
+
+    <div class="d-flex flex-wrap gap-2 mt-4">
+        @foreach (var worker in Workers)
+        {
+            <button class="btn btn-outline-primary" disabled="@(_runningJob == worker.Job)" @onclick="() => RunNowAsync(worker)">
+                @if (_runningJob == worker.Job)
+                {
+                    <text>Running @worker.Job…</text>
+                }
+                else
+                {
+                    <text>Run "@worker.Job" now</text>
+                }
+            </button>
+        }
+    </div>
+
+    @if (_runs is null)
+    {
+        <p class="mt-4">Loading run history…</p>
+    }
+    else if (_runs.Count == 0)
+    {
+        <div class="alert alert-secondary mt-4">No maintenance runs recorded yet.</div>
+    }
+    else
+    {
+        <div class="table-responsive mt-4">
+            <table class="table align-middle">
+                <thead>
+                    <tr>
+                        <th>Job</th>
+                        <th>Requested</th>
+                        <th>Status</th>
+                        <th>Processed</th>
+                        <th>Remaining</th>
+                        <th>Occurred</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var run in _runs)
+                    {
+                        <tr>
+                            <td><code>@run.Command.Job</code></td>
+                            <td class="small text-muted">@run.Command.RequestedAtUtc.ToLocalTime().ToString("g")</td>
+                            <td>
+                                @if (run.Outcome is null)
+                                {
+                                    <span class="badge text-bg-secondary">@(run.IsCollected ? "Running" : "Pending")</span>
+                                }
+                                else
+                                {
+                                    <span class="badge @StatusBadgeClass(run.Outcome.Status)">@run.Outcome.Status</span>
+                                }
+                            </td>
+                            <td>@(run.Outcome?.ProcessedCount.ToString() ?? "—")</td>
+                            <td>@(run.Outcome?.RemainingCount.ToString() ?? "—")</td>
+                            <td class="small text-muted">@(run.Outcome is null ? "—" : run.Outcome.OccurredAtUtc.ToLocalTime().ToString("g"))</td>
+                        </tr>
+                        @if (run.Outcome?.FailureReason is { Length: > 0 } reason)
+                        {
+                            <tr>
+                                <td colspan="6" class="small text-danger">@reason</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+</main>
+
+@code {
+    private const string Domain = "aetheric-admin";
+
+    private IReadOnlyList<MaintenanceRunRecord>? _runs;
+    private string? _runningJob;
+
+    protected override async Task OnInitializedAsync() => await ReloadAsync();
+
+    private async Task RunNowAsync(IMaintenanceWorker worker)
+    {
+        _runningJob = worker.Job;
+        try
+        {
+            var caretaker = Caretaker;
+            var command = new MaintenanceCommand(
+                Guid.NewGuid(),
+                Domain,
+                worker.Job,
+                TimeProvider.GetUtcNow(),
+                Source: "MaintenanceReview (manual)");
+
+            await caretaker.PostAsync(Domain, command, CancellationToken.None);
+            var collected = await caretaker.CollectNextAsync(Domain, worker.Job, CancellationToken.None);
+            if (collected is not null)
+            {
+                var outcome = await worker.RunAsync(collected, CancellationToken.None);
+                await caretaker.RecordOutcomeAsync(Domain, outcome, CancellationToken.None);
+            }
+        }
+        finally
+        {
+            _runningJob = null;
+            await ReloadAsync();
+        }
+    }
+
+    private async Task ReloadAsync()
+    {
+        _runs = await Caretaker.ListRunsAsync(Domain, CancellationToken.None);
+    }
+
+    private ICaretaker Caretaker =>
+        Campus.Resolve<IOperationsFaculty>().Resolve<IMaintenance>().Caretaker;
+
+    private static string StatusBadgeClass(MaintenanceRunStatus status) => status switch
+    {
+        MaintenanceRunStatus.Completed => "text-bg-success",
+        MaintenanceRunStatus.Partial => "text-bg-warning",
+        MaintenanceRunStatus.Failed => "text-bg-danger",
+        _ => "text-bg-secondary"
+    };
+}

@@ -1,0 +1,7 @@
+# Aetheric Admin
+
+Backend integration host for the Aetheric Forge. The current Blazor app hosts Workbench and Operations → Maintenance, scheduled/manual jobs, and shared membership checks.
+
+Initialize pinned dependencies with `git submodule update --init --recursive`, then build with `dotnet build --configuration Release`.
+
+See [Redis persistence](docs/redis-persistence.md) for run-history and Data Protection configuration, migration, deployment limits, and test commands. Job definitions, encrypted credentials, and membership applications also require the MongoDB settings in `appsettings.json`. Outside Development, authentication uses the configured Keycloak client.

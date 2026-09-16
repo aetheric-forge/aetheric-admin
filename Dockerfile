@@ -6,7 +6,7 @@ WORKDIR /src
 COPY . .
 
 RUN dotnet restore
-RUN dotnet publish \
+RUN dotnet publish src/AethericAdmin.Web/AethericAdmin.Web.csproj \
     -c Release \
     -o /app/publish \
     --no-restore

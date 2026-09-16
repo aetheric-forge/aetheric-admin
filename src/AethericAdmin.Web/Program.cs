@@ -53,6 +53,7 @@ if (requireAuth)
             .Build());
 }
 
+builder.Services.AddAdminRedisPersistence(builder.Configuration);
 builder.Services.AddForgeCampus();
 
 builder.Services.AddSingleton(TimeProvider.System);

@@ -2,4 +2,7 @@
   <Folder Name="/src/">
     <Project Path="src/AethericAdmin.Web/AethericAdmin.Web.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/AethericAdmin.Tests/AethericAdmin.Tests.csproj" />
+  </Folder>
 </Solution>

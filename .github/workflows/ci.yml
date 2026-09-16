@@ -1,0 +1,24 @@
+name: Build and test
+on:
+  push:
+    branches: [main]
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Start isolated Redis
+        run: docker run --detach --name admin-redis-test --publish 127.0.0.1:6379:6379 redis:7-alpine redis-server --requirepass dev --appendonly yes
+      - run: dotnet build --configuration Release
+      - run: dotnet test --configuration Release --no-build
+      - name: Stop Redis
+        if: always()
+        run: docker rm --force admin-redis-test

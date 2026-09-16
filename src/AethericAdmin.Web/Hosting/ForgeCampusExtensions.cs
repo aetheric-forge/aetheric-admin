@@ -18,17 +18,15 @@ using AethericForge.Runtime.Services.Faculty;
 using AethericForge.Runtime.Services.Maintenance;
 using AethericForge.Runtime.Services.Staging;
 using AethericForge.Runtime.Services.Workbench;
+using AethericAdmin.Web.Infrastructure;
 using MongoDB.Driver;
 
 namespace AethericAdmin.Web.Hosting;
 
 /// <summary>
-/// Minimal Campus composition for the admin app: only Workbench (Maintenance's Caretaker rides on
-/// its in-memory WorkbenchService - see Caretaker.cs's own remarks; this is NOT Redis/Mongo-backed,
-/// so the run-history ledger is per-process and does not survive a restart, same as it already
-/// behaved inside aetheric-web) and Operations -> Maintenance are mounted. No Registry/Archive/
-/// Library/PostOffice - ICampus exposes those as lazily-Resolve'd properties, so leaving them
-/// unregistered is safe as long as nothing here ever touches campus.Archive/.Registry/etc.
+/// Minimal Campus: Redis-backed Workbench and Operations -> Maintenance. Caretaker's
+/// ledger survives host restarts, but its read/modify/write gate is still process-local;
+/// only one active admin instance is supported. Unmounted Campus services remain lazy.
 /// </summary>
 public static class ForgeCampusExtensions
 {
@@ -97,7 +95,7 @@ public static class ForgeCampusExtensions
                 .With<ICaretaker, Caretaker>()
                 .With<IStagingProvider>(_ => new InMemoryStagingProvider("Default"))
                 .With<IStagingService, StagingService>()
-                .With<IWorkbenchService, WorkbenchService>()
+                .With<IWorkbenchService>(sp => sp.GetRequiredService<RedisWorkbenchService>())
                 .With<ITeam<IWorkbenchWorker>>(_ => new Team<IWorkbenchWorker>(Array.Empty<IWorkbenchWorker>()))
                 .With<IArtificer, Artificer>()
                 .With<IWorkbenchContext, WorkbenchContext>()

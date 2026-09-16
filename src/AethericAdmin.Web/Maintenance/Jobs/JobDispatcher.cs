@@ -13,7 +13,7 @@ public sealed class JobDispatcher(
     TimeProvider timeProvider,
     ILogger<JobDispatcher> logger)
 {
-    public const string Domain = "aetheric-web";
+    public const string Domain = "aetheric-admin";
 
     private readonly IReadOnlyDictionary<JobDefinitionKind, IJobExecutor> _executorsByKind =
         executors.ToDictionary(executor => executor.Kind);

@@ -8,8 +8,8 @@ namespace AethericAdmin.Web.Maintenance.Jobs;
 
 /// <summary>
 /// SSH credentials, persisted in MongoDB with the secret (password or private key) encrypted at
-/// rest via a dedicated Data Protection purpose string - the same Redis-backed key ring already
-/// wired up in Program.cs, so credentials survive restarts and work across replicas. The secret is
+/// rest via a dedicated Data Protection purpose string - the Redis-backed key ring
+/// configured by AddAdminRedisPersistence, so credentials survive restarts when that ring is retained. The secret is
 /// only ever decrypted transiently inside UseSecretAsync's callback; it's never returned to the UI
 /// or held in a variable outside that scope. Ported from aetheric-gm's SqliteSshCredentialService
 /// (same protector pattern, same private-key validation via SshPrivateKeyInspector), backed by

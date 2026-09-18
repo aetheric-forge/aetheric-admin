@@ -8,14 +8,12 @@ using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
-using MongoDB.Bson;
-using MongoDB.Bson.Serialization;
-using MongoDB.Driver;
+using Forge.Primitives.MongoDb;
 
 // MongoDB.Driver 3.x removed its old implicit Guid-serialization default - without this, every
 // write of a Guid Id (JobDefinition, SshCredential) throws "GuidSerializer cannot serialize a Guid
 // when GuidRepresentation is Unspecified." Must run before any Mongo store is constructed.
-BsonSerializer.RegisterSerializer(new MongoDB.Bson.Serialization.Serializers.GuidSerializer(GuidRepresentation.Standard));
+MongoBsonSetup.EnsureGuidRepresentationRegistered();
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -60,15 +58,10 @@ builder.Services.AddSingleton(TimeProvider.System);
 
 // Maintenance owns its job and encrypted-credential stores - a keyed client keeps this
 // connection separate should other institutions ever join this app.
-var maintenanceMongoUrl = MongoUrl.Create(
-    ForgeCampusExtensions.BuildMongoUri(
-        InstitutionServiceConfiguration.Resolve(builder.Configuration, "Maintenance", "MongoDb")));
-builder.Services.AddKeyedSingleton<IMongoClient>(
+builder.Services.AddKeyedMongoClient(
     "Maintenance",
-    (_, _) => new MongoClient(maintenanceMongoUrl));
-builder.Services.AddKeyedSingleton<IMongoDatabase>(
-    "Maintenance",
-    (sp, _) => sp.GetRequiredKeyedService<IMongoClient>("Maintenance").GetDatabase(maintenanceMongoUrl.DatabaseName));
+    InstitutionServiceConfiguration.Resolve(builder.Configuration, "Maintenance", "MongoDb")
+        .GetSection("MongoDb").Get<MongoOptions>()!);
 
 builder.Services.AddSingleton<ICredentialStore, MongoCredentialStore>();
 builder.Services.AddSingleton<IJobDefinitionStore, MongoJobDefinitionStore>();
@@ -78,15 +71,10 @@ builder.Services.AddSingleton<JobDispatcher>();
 
 // Shared with aetheric-web via the aetheric-contracts submodule - aetheric-web creates
 // applications through the public Join Campus form, this app reads/flags them.
-var membershipMongoUrl = MongoUrl.Create(
-    ForgeCampusExtensions.BuildMongoUri(
-        InstitutionServiceConfiguration.Resolve(builder.Configuration, "Membership", "MongoDb")));
-builder.Services.AddKeyedSingleton<IMongoClient>(
+builder.Services.AddKeyedMongoClient(
     "Membership",
-    (_, _) => new MongoClient(membershipMongoUrl));
-builder.Services.AddKeyedSingleton<IMongoDatabase>(
-    "Membership",
-    (sp, _) => sp.GetRequiredKeyedService<IMongoClient>("Membership").GetDatabase(membershipMongoUrl.DatabaseName));
+    InstitutionServiceConfiguration.Resolve(builder.Configuration, "Membership", "MongoDb")
+        .GetSection("MongoDb").Get<MongoOptions>()!);
 builder.Services.AddSingleton<IMembershipApplicationStore, MongoMembershipApplicationStore>();
 builder.Services.AddSingleton<IMaintenanceWorker, StaleMembershipApplicationsWorker>();
 

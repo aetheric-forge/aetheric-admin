@@ -19,7 +19,6 @@ using AethericForge.Runtime.Services.Maintenance;
 using AethericForge.Runtime.Services.Staging;
 using AethericForge.Runtime.Services.Workbench;
 using AethericAdmin.Web.Infrastructure;
-using MongoDB.Driver;
 
 namespace AethericAdmin.Web.Hosting;
 
@@ -30,39 +29,6 @@ namespace AethericAdmin.Web.Hosting;
 /// </summary>
 public static class ForgeCampusExtensions
 {
-    internal static string BuildMongoUri(IConfiguration configuration)
-    {
-        var host = GetRequiredSetting(configuration, "MongoDb:Host");
-        var username = GetRequiredSetting(configuration, "MongoDb:Username");
-        var password = GetRequiredSetting(configuration, "MongoDb:Password");
-        var databaseName = GetRequiredSetting(configuration, "MongoDb:DatabaseName");
-        var authenticationDatabase = GetRequiredSetting(configuration, "MongoDb:AuthenticationDatabase");
-
-        var port = configuration.GetValue<int?>("MongoDb:Port")
-                   ?? throw new InvalidOperationException("MongoDb:Port is required.");
-
-        var builder = new MongoUrlBuilder
-        {
-            Server = new MongoServerAddress(host, port),
-            Username = username,
-            Password = password,
-            DatabaseName = databaseName,
-            AuthenticationSource = authenticationDatabase,
-            AuthenticationMechanism = configuration.GetValue("MongoDb:AuthenticationMechanism", "SCRAM-SHA-256"),
-            DirectConnection = configuration.GetValue("MongoDb:DirectConnection", true)
-        };
-
-        return builder.ToMongoUrl().ToString();
-    }
-
-    private static string GetRequiredSetting(IConfiguration configuration, string key)
-    {
-        var value = configuration[key];
-        return !string.IsNullOrWhiteSpace(value)
-            ? value
-            : throw new InvalidOperationException($"{key} is required.");
-    }
-
     private static TFaculty RegisterFaculty<TFaculty>(
         Campus campus,
         InstitutionTemplate campusTemplate,

@@ -1,4 +1,5 @@
 using AethericAdmin.Web.Infrastructure;
+using Forge.Primitives.Redis;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.DataProtection.KeyManagement;
 using Microsoft.AspNetCore.DataProtection.StackExchangeRedis;
@@ -34,21 +35,12 @@ public static class RedisPersistenceExtensions
     public static ConfigurationOptions ConnectionOptions(IConfiguration configuration, string institution)
     {
         var resolved = InstitutionServiceConfiguration.Resolve(configuration, institution, "Redis");
-        var host = resolved["Redis:Host"];
-        if (string.IsNullOrWhiteSpace(host)) throw new InvalidOperationException($"{institution}:Redis:Host is required.");
-        var port = resolved.GetValue<int?>("Redis:Port") ?? 6379;
-        var database = resolved.GetValue<int?>("Redis:Database") ?? 0;
-        if (port is < 1 or > 65535 || database < 0) throw new InvalidOperationException("Invalid Redis port or database.");
-        return new ConfigurationOptions
-        {
-            EndPoints = { { host, port } },
-            User = resolved["Redis:User"],
-            Password = resolved["Redis:Password"],
-            Ssl = resolved.GetValue<bool>("Redis:Ssl"),
-            DefaultDatabase = database,
-            AbortOnConnectFail = true,
-            ConnectRetry = 1,
-            ConnectTimeout = 5000
-        };
+        var options = resolved.GetSection("Redis").Get<RedisOptions>() ?? new RedisOptions { Host = string.Empty };
+        if (string.IsNullOrWhiteSpace(options.Host)) throw new InvalidOperationException($"{institution}:Redis:Host is required.");
+        if (options.Port is < 1 or > 65535 || options.DefaultDatabase < 0) throw new InvalidOperationException("Invalid Redis port or database.");
+        options.AbortOnConnectFail = true;
+        options.ConnectRetry = 1;
+        options.ConnectTimeout = 5000;
+        return options.ToConfigurationOptions();
     }
 }

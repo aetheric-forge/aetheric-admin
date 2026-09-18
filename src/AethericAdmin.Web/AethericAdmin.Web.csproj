@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\primitives\src\Primitives.MongoDb\Primitives.MongoDb.csproj" />
+    <ProjectReference Include="..\..\primitives\src\Primitives.Redis\Primitives.Redis.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Campus\AethericForge.Runtime.Institutions.Campus.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Faculty\AethericForge.Runtime.Institutions.Faculty.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Workbench\AethericForge.Runtime.Institutions.Workbench.csproj" />

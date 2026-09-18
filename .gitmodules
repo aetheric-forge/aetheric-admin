@@ -4,3 +4,6 @@
 [submodule "contracts"]
 	path = contracts
 	url = https://github.com/aetheric-forge/aetheric-contracts.git
+[submodule "primitives"]
+	path = primitives
+	url = https://github.com/aetheric-forge/primitives.git

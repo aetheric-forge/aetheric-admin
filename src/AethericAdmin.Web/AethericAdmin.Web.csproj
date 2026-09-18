@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <ProjectReference Include="..\..\primitives\src\Primitives.MongoDb\Primitives.MongoDb.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Campus\AethericForge.Runtime.Institutions.Campus.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Faculty\AethericForge.Runtime.Institutions.Faculty.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Workbench\AethericForge.Runtime.Institutions.Workbench.csproj" />

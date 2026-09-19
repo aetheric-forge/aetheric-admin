@@ -1,14 +1,42 @@
 <Project>
-  <!-- Provisioning's Registry adapter must consume the same runtime assembly as admin. -->
+  <!--
+    Registry used to live in aetheric-provisioning and reach Keycloak through a separate,
+    independently-checked-out external/runtime submodule, needing this redirect to avoid a
+    diamond. It now lives inside aetheric-runtime itself (src/Provisioning/Aetheric.Provisioning.Registry)
+    with its own correct, self-contained reference to the Keycloak provider - no redirection
+    needed anymore. Redirecting here too caused a conflicting second reference to the same
+    project once Registry moved.
+  -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'Aetheric.Provisioning.Registry'">
     <!-- Reuse the Registry adapter's internal HTTP-handler seam in host integration tests. -->
     <InternalsVisibleTo Include="AethericAdmin.Tests" />
-    <ProjectReference Remove="../../external/runtime/src/Providers/AethericForge.Runtime.Providers.Identity.Keycloak/AethericForge.Runtime.Providers.Identity.Keycloak.csproj" />
-    <ProjectReference Include="$(MSBuildThisFileDirectory)runtime/src/Providers/AethericForge.Runtime.Providers.Identity.Keycloak/AethericForge.Runtime.Providers.Identity.Keycloak.csproj" />
   </ItemGroup>
   <!-- Membership and admin also share a single Primitives.MongoDb assembly. -->
   <ItemGroup Condition="'$(MSBuildProjectName)' == 'AethericContracts.Membership'">
     <ProjectReference Remove="../../primitives/src/Primitives.MongoDb/Primitives.MongoDb.csproj" />
     <ProjectReference Include="$(MSBuildThisFileDirectory)primitives/src/Primitives.MongoDb/Primitives.MongoDb.csproj" />
+  </ItemGroup>
+  <!--
+    Components (web-components' Razor library) defaults to reaching Simulation/Application/
+    Registry through web-components' own nested runtime submodule - a second, independently
+    checked out copy of aetheric-runtime, separate from this repo's own top-level runtime
+    submodule. Left alone, this builds two different assemblies from identical source, which
+    don't satisfy each other's types at DI-resolution time. Components.csproj exposes a
+    RuntimeRoot MSBuild property for exactly this case, but AdditionalProperties on a
+    ProjectReference is not reliably honored by NuGet's restore-time project-reference graph
+    walk (confirmed empirically - restore evaluates a referenced project's own ProjectReference
+    items using default property values regardless of AdditionalProperties set on the incoming
+    edge), so overriding it that way leaves the actually-used path unrestored. This repo's own
+    established pattern - Remove the default reference, Include the one rooted at this repo's
+    own submodule - works reliably because it operates on the referencing project's items
+    directly rather than through property indirection.
+  -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Aetheric.Provisioning.Components'">
+    <ProjectReference Remove="../../runtime/src/Provisioning/Aetheric.Provisioning.Simulation/Aetheric.Provisioning.Simulation.csproj" />
+    <ProjectReference Remove="../../runtime/src/Provisioning/Aetheric.Provisioning.Application/Aetheric.Provisioning.Application.csproj" />
+    <ProjectReference Remove="../../runtime/src/Provisioning/Aetheric.Provisioning.Registry/Aetheric.Provisioning.Registry.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)runtime/src/Provisioning/Aetheric.Provisioning.Simulation/Aetheric.Provisioning.Simulation.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)runtime/src/Provisioning/Aetheric.Provisioning.Application/Aetheric.Provisioning.Application.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)runtime/src/Provisioning/Aetheric.Provisioning.Registry/Aetheric.Provisioning.Registry.csproj" />
   </ItemGroup>
 </Project>

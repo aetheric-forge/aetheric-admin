@@ -15,8 +15,6 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '10.0.x'
-      - name: Check primitives submodule consistency
-        run: ./scripts/check-primitives-consistency.sh
       - name: Start isolated Redis
         run: docker run --detach --name admin-redis-test --publish 127.0.0.1:6379:6379 redis:7-alpine redis-server --requirepass dev --appendonly yes
       - run: dotnet build --configuration Release

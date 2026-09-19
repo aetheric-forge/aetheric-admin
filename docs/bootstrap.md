@@ -67,3 +67,5 @@ The runtime pin is `6c55d21f486a349ad4beb671a4b72726bf2485bd` (main, campus post
 Run `dotnet test --configuration Release` with the existing isolated Redis fixture. `REDIS_TEST_HOST`, `REDIS_TEST_PORT`, and `REDIS_TEST_PASSWORD` select that fixture. Bootstrap tests use local mock OIDC/Keycloak responses and a fake connection validator; live infrastructure validation remains supplied by the tested provisioner implementation. Claude owns the runtime subscriber work.
 
 CI also publishes admin and runs `scripts/smoke-bootstrap.py` against the published output, verifying first startup, static assets, and route isolation without live Keycloak/Redis/Mongo dependencies.
+
+The web-components repository is currently private. Developer checkouts use its SSH URL. CI accepts `SUBMODULES_TOKEN`, a read-only token with access to admin and the private submodule repositories. The default workflow token only suffices if every submodule is publicly readable; configure the repository/organization secret before expecting a fresh CI checkout to succeed.

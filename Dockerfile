@@ -1,6 +1,9 @@
 # Build Stage
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 
+COPY docker/certs/aetheric-forge-ca.crt /usr/local/share/ca-certificates/aetheric-forge-ca.crt
+RUN update-ca-certificates
+
 WORKDIR /src
 
 COPY . .

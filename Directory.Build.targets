@@ -1,0 +1,14 @@
+<Project>
+  <!-- Provisioning's Registry adapter must consume the same runtime assembly as admin. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Aetheric.Provisioning.Registry'">
+    <!-- Reuse the Registry adapter's internal HTTP-handler seam in host integration tests. -->
+    <InternalsVisibleTo Include="AethericAdmin.Tests" />
+    <ProjectReference Remove="../../external/runtime/src/Providers/AethericForge.Runtime.Providers.Identity.Keycloak/AethericForge.Runtime.Providers.Identity.Keycloak.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)runtime/src/Providers/AethericForge.Runtime.Providers.Identity.Keycloak/AethericForge.Runtime.Providers.Identity.Keycloak.csproj" />
+  </ItemGroup>
+  <!-- Membership and admin also share a single Primitives.MongoDb assembly. -->
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'AethericContracts.Membership'">
+    <ProjectReference Remove="../../primitives/src/Primitives.MongoDb/Primitives.MongoDb.csproj" />
+    <ProjectReference Include="$(MSBuildThisFileDirectory)primitives/src/Primitives.MongoDb/Primitives.MongoDb.csproj" />
+  </ItemGroup>
+</Project>

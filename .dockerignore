@@ -1,0 +1,10 @@
+**/.git
+**/bin
+**/obj
+**/TestResults
+**/.env
+**/.env.*
+**/*.key
+**/*.pfx
+**/*.p12
+**/data

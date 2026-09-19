@@ -21,6 +21,10 @@ jobs:
         run: docker run --detach --name admin-redis-test --publish 127.0.0.1:6379:6379 redis:7-alpine redis-server --requirepass dev --appendonly yes
       - run: dotnet build --configuration Release
       - run: dotnet test --configuration Release --no-build
+      - name: Publish admin
+        run: dotnet publish src/AethericAdmin.Web --configuration Release --no-restore --output /tmp/admin-publish
+      - name: Smoke test published bootstrap without infrastructure
+        run: python3 scripts/smoke-bootstrap.py /tmp/admin-publish
       - name: Stop Redis
         if: always()
         run: docker rm --force admin-redis-test

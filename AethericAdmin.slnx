@@ -1,5 +1,6 @@
 <Solution>
   <Folder Name="/src/">
+    <Project Path="src/AethericAdmin.BootstrapShell/AethericAdmin.BootstrapShell.csproj" />
     <Project Path="src/AethericAdmin.Web/AethericAdmin.Web.csproj" />
   </Folder>
   <Folder Name="/tests/">

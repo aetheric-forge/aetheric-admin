@@ -1,4 +1,5 @@
 using AethericAdmin.Web.Components;
+using AethericAdmin.Web.Bootstrap;
 using AethericAdmin.Web.Hosting;
 using AethericAdmin.Web.Maintenance;
 using AethericAdmin.Web.Maintenance.Jobs;
@@ -15,11 +16,38 @@ using Forge.Primitives.MongoDb;
 // when GuidRepresentation is Unspecified." Must run before any Mongo store is constructed.
 MongoBsonSetup.EnsureGuidRepresentationRegistered();
 
-var builder = WebApplication.CreateBuilder(args);
+var initializeBootstrap = args.Contains("--initialize-bootstrap", StringComparer.Ordinal);
+var builder = WebApplication.CreateBuilder(args.Where(x => x != "--initialize-bootstrap").ToArray());
 
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
+
+// Bootstrap is an explicit deployment mode. It never starts operational Redis/Mongo services.
+if (initializeBootstrap || builder.Configuration.GetValue<bool>("Bootstrap:Enabled"))
+{
+    var signIn = await builder.AddAdminBootstrapAsync(initializeBootstrap);
+    if (initializeBootstrap)
+    {
+        Console.WriteLine("Initialized admin bootstrap state. Existing state is never replaced.");
+        return;
+    }
+    var bootstrapApp = builder.Build();
+    bootstrapApp.UseForwardedHeaders();
+    if (!bootstrapApp.Environment.IsDevelopment())
+    {
+        bootstrapApp.UseExceptionHandler("/error");
+        bootstrapApp.UseHsts();
+        bootstrapApp.UseHttpsRedirection();
+    }
+    bootstrapApp.UseStaticFiles();
+    bootstrapApp.UseAuthentication();
+    bootstrapApp.UseAuthorization();
+    bootstrapApp.UseAntiforgery();
+    bootstrapApp.MapAdminBootstrap(signIn);
+    await bootstrapApp.RunAsync();
+    return;
+}
 
 // In Development, skip OIDC entirely so UI work isn't blocked on a live Keycloak client.
 // Everywhere else every page requires authentication via the global fallback policy below -

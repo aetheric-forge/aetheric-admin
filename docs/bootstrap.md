@@ -68,4 +68,4 @@ Run `dotnet test --configuration Release` with the existing isolated Redis fixtu
 
 CI also publishes admin and runs `scripts/smoke-bootstrap.py` against the published output, verifying first startup, static assets, and route isolation without live Keycloak/Redis/Mongo dependencies.
 
-The web-components repository is currently private. Developer checkouts use its SSH URL. CI accepts `SUBMODULES_TOKEN`, a read-only token with access to admin and the private submodule repositories. The default workflow token only suffices if every submodule is publicly readable; configure the repository/organization secret before expecting a fresh CI checkout to succeed.
+The web-components repository is public. Normal recursive submodule checkout and the default GitHub Actions token are sufficient; no cross-repository secret is required.

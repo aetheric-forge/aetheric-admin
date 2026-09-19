@@ -9,4 +9,4 @@
 	url = https://github.com/aetheric-forge/primitives.git
 [submodule "web-components"]
 	path = web-components
-	url = git@github.com:aetheric-forge/aetheric-web-components.git
+	url = https://github.com/aetheric-forge/aetheric-web-components.git

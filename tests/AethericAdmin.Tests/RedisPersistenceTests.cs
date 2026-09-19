@@ -58,7 +58,7 @@ public sealed class RedisPersistenceTests : IAsyncLifetime
     [Fact]
     public async Task Corrupt_history_is_not_treated_as_an_empty_ledger()
     {
-        using var services = TestHost.Create(_prefix);
+        await using var services = TestHost.Create(_prefix);
         var caretaker = services.GetRequiredService<ICaretaker>();
         var command = new MaintenanceCommand(Guid.NewGuid(), "test", "job", DateTimeOffset.UtcNow, "test");
         await caretaker.PostAsync("test", command);
@@ -90,7 +90,7 @@ public sealed class RedisPersistenceTests : IAsyncLifetime
     [Fact]
     public async Task Data_protection_application_names_isolate_payloads()
     {
-        using var first = TestHost.Create(_prefix);
+        await using var first = TestHost.Create(_prefix);
         var payload = first.GetRequiredService<IDataProtectionProvider>().CreateProtector("test").Protect("value");
         var config = new ConfigurationBuilder().AddConfiguration(TestHost.Configuration(_prefix))
             .AddInMemoryCollection(new Dictionary<string, string?> { ["DataProtection:ApplicationName"] = "AnotherApp" }).Build();

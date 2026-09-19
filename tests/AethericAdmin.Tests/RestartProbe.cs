@@ -13,7 +13,7 @@ public static class RestartProbe
     public static async Task<int> Main(string[] args)
     {
         if (args.Length != 3) return 2;
-        using var services = TestHost.Create(args[1]);
+        await using var services = TestHost.Create(args[1]);
         var caretaker = services.GetRequiredService<ICampus>().Resolve<IOperationsFaculty>().Resolve<IMaintenance>().Caretaker;
         var protector = services.GetRequiredService<IDataProtectionProvider>()
             .CreateProtector("AethericAdmin.Web.Maintenance.SshCredentials");

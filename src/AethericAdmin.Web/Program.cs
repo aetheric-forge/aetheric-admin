@@ -1,8 +1,11 @@
+using Aetheric.Provisioning.Engine;
+using Aetheric.Provisioning.Persistence;
 using AethericAdmin.Web.Components;
 using AethericAdmin.Web.Bootstrap;
 using AethericAdmin.Web.Hosting;
 using AethericAdmin.Web.Maintenance;
 using AethericAdmin.Web.Maintenance.Jobs;
+using AethericAdmin.Web.Provisioning;
 using AethericContracts.Membership;
 using AethericForge.Runtime.Abstractions.Interfaces.Maintenance.Services;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -82,6 +85,13 @@ if (requireAuth)
 builder.Services.AddAdminRedisPersistence(builder.Configuration);
 builder.Services.AddForgeCampus();
 
+// Bootstrap-mode-only until now (AdminBootstrapHosting.cs) - normal-mode admin needs this too,
+// to read back the root credentials it collected during bootstrap and forward them in the
+// CampusDeploymentRequested message. Same directories, same encrypted file format.
+builder.Services.AddSingleton<IRootCredentialStore>(new ManagedRootCredentialStore(
+    builder.Configuration["RootCredentials:Directory"] ?? "data/root-credentials",
+    builder.Configuration["RootCredentials:KeyDirectory"] ?? "data/root-key"));
+
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Maintenance owns its job and encrypted-credential stores - a keyed client keeps this
@@ -129,5 +139,6 @@ app.UseAntiforgery();
 app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
+app.MapCampusDeploymentEndpoints();
 
 app.Run();

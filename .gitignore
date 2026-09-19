@@ -480,3 +480,8 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+# Local bootstrap state and operator configuration
+**/data/
+.env
+.env.*

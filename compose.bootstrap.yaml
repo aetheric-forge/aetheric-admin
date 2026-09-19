@@ -1,0 +1,33 @@
+services:
+  admin:
+    build: .
+    image: aetheric-admin:bootstrap
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://127.0.0.1:5180
+      Bootstrap__Enabled: "true"
+      BootstrapConnection__Authority: ${KEYCLOAK_AUTHORITY:?Set KEYCLOAK_AUTHORITY}
+      BootstrapConnection__Realm: ${KEYCLOAK_REALM:?Set KEYCLOAK_REALM}
+      BootstrapConnection__ClientId: ${KEYCLOAK_CLIENT_ID:?Set KEYCLOAK_CLIENT_ID}
+      BootstrapConnection__PublicOrigin: ${ADMIN_PUBLIC_ORIGIN:?Set ADMIN_PUBLIC_ORIGIN}
+      BootstrapConnection__AdminRole: ${FORGE_ADMIN_ROLE:-forge-admin}
+      BootstrapConnection__StateDirectory: /data/bootstrap
+      Bootstrap__ProtectionKeyDirectory: /data/protection
+      RootCredentials__Directory: /data/root-credentials
+      RootCredentials__KeyDirectory: /data/root-key
+    volumes:
+      - bootstrap-state:/data/bootstrap
+      - bootstrap-protection:/data/protection
+      - root-credentials:/data/root-credentials
+      - root-key:/data/root-key
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  bootstrap-state:
+  bootstrap-protection:
+  root-credentials:
+  root-key:

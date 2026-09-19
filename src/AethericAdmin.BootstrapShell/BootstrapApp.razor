@@ -1,0 +1,27 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using Microsoft.AspNetCore.Components.Routing
+@using Microsoft.AspNetCore.Components.Authorization
+@using Aetheric.Provisioning.Components
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <base href="/" />
+    <link rel="stylesheet" href="_content/Aetheric.Provisioning.Components/app.css" />
+    <HeadOutlet />
+</head>
+<body>
+    <Router AppAssembly="typeof(BootstrapApp).Assembly" AdditionalAssemblies="new[] { typeof(ProvisioningComponentAssembly).Assembly }">
+        <Found Context="routeData">
+            <AuthorizeRouteView RouteData="routeData">
+                <NotAuthorized><main><h1>Sign in to continue setup</h1><a href="/setup">Return to connection setup</a></main></NotAuthorized>
+            </AuthorizeRouteView>
+        </Found>
+        <NotFound><main><h1>Page not found</h1><a href="/setup">Return to setup</a></main></NotFound>
+    </Router>
+    <script src="_framework/blazor.web.js"></script>
+    <script type="module" src="_content/Aetheric.Provisioning.Components/infrastructure-setup.js"></script>
+</body>
+</html>

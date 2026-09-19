@@ -2,10 +2,21 @@
 
   <ItemGroup><ProjectReference Include="../AethericAdmin.BootstrapShell/AethericAdmin.BootstrapShell.csproj" /></ItemGroup>
   <ItemGroup>
+    <!--
+      Components (below) still defaults to web-components' own nested runtime submodule for
+      Simulation/Application/Registry - a second, independently checked out copy of
+      aetheric-runtime, separate from this repo's own top-level runtime submodule referenced
+      here and below. See the root Directory.Build.targets for how that's redirected to this
+      repo's own submodule (Remove+Include on the referencing project's items - an
+      AdditionalProperties/RuntimeRoot override was tried first and does not work reliably:
+      NuGet's restore-time ProjectReference graph walk does not honor AdditionalProperties set
+      on the incoming edge, evaluating the referenced project with default property values
+      regardless, which leaves the actually-used path unrestored).
+    -->
     <ProjectReference Include="../../web-components/src/Aetheric.Provisioning.Components/Aetheric.Provisioning.Components.csproj" />
-    <ProjectReference Include="../../web-components/provisioning/src/Aetheric.Provisioning.Persistence/Aetheric.Provisioning.Persistence.csproj" />
-    <ProjectReference Include="../../web-components/provisioning/src/Aetheric.Provisioning.Infrastructure/Aetheric.Provisioning.Infrastructure.csproj" />
-    <ProjectReference Include="../../web-components/provisioning/src/Aetheric.Provisioning.Application/Aetheric.Provisioning.Application.csproj" />
+    <ProjectReference Include="../../runtime/src/Provisioning/Aetheric.Provisioning.Persistence/Aetheric.Provisioning.Persistence.csproj" />
+    <ProjectReference Include="../../runtime/src/Provisioning/Aetheric.Provisioning.Infrastructure/Aetheric.Provisioning.Infrastructure.csproj" />
+    <ProjectReference Include="../../runtime/src/Provisioning/Aetheric.Provisioning.Application/Aetheric.Provisioning.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\primitives\src\Primitives.MongoDb\Primitives.MongoDb.csproj" />

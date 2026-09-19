@@ -5,6 +5,7 @@
     <ProjectReference Include="../../web-components/src/Aetheric.Provisioning.Components/Aetheric.Provisioning.Components.csproj" />
     <ProjectReference Include="../../web-components/provisioning/src/Aetheric.Provisioning.Persistence/Aetheric.Provisioning.Persistence.csproj" />
     <ProjectReference Include="../../web-components/provisioning/src/Aetheric.Provisioning.Infrastructure/Aetheric.Provisioning.Infrastructure.csproj" />
+    <ProjectReference Include="../../web-components/provisioning/src/Aetheric.Provisioning.Application/Aetheric.Provisioning.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\primitives\src\Primitives.MongoDb\Primitives.MongoDb.csproj" />
@@ -13,11 +14,14 @@
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Faculty\AethericForge.Runtime.Institutions.Faculty.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Workbench\AethericForge.Runtime.Institutions.Workbench.csproj" />
     <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.Maintenance\AethericForge.Runtime.Institutions.Maintenance.csproj" />
+    <ProjectReference Include="..\..\runtime\src\Institutions\AethericForge.Runtime.Institutions.PostOffice\AethericForge.Runtime.Institutions.PostOffice.csproj" />
     <ProjectReference Include="..\..\runtime\src\Services\AethericForge.Runtime.Services.Faculty\AethericForge.Runtime.Services.Faculty.csproj" />
     <ProjectReference Include="..\..\runtime\src\Services\AethericForge.Runtime.Services.Workbench\AethericForge.Runtime.Services.Workbench.csproj" />
     <ProjectReference Include="..\..\runtime\src\Services\AethericForge.Runtime.Services.Maintenance\AethericForge.Runtime.Services.Maintenance.csproj" />
     <ProjectReference Include="..\..\runtime\src\Services\AethericForge.Runtime.Services.Staging\AethericForge.Runtime.Services.Staging.csproj" />
+    <ProjectReference Include="..\..\runtime\src\Services\AethericForge.Runtime.Services.Post\AethericForge.Runtime.Services.Post.csproj" />
     <ProjectReference Include="..\..\runtime\src\Providers\AethericForge.Runtime.Providers.Staging.InMemory\AethericForge.Runtime.Providers.Staging.InMemory.csproj" />
+    <ProjectReference Include="..\..\runtime\src\Providers\AethericForge.Runtime.Providers.Post.RabbitMq\AethericForge.Runtime.Providers.Post.RabbitMq.csproj" />
     <ProjectReference Include="..\..\contracts\src\AethericContracts.Membership\AethericContracts.Membership.csproj" />
   </ItemGroup>
 

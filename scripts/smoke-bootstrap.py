@@ -49,11 +49,12 @@ with tempfile.TemporaryDirectory(prefix="admin-bootstrap-smoke-") as temporary:
                 assert response.url.endswith("/setup")
             with urllib.request.urlopen(origin + "/setup/infrastructure", timeout=5) as response:
                 assert "/setup?" in response.url, "Anonymous request reached credential setup"
-            try:
-                urllib.request.urlopen(origin + "/maintenance", timeout=5)
-                raise AssertionError("Operational route exposed in bootstrap mode")
-            except urllib.error.HTTPError as error:
-                assert error.code == 404
+            for route in ["/maintenance", "/university"]:
+                try:
+                    urllib.request.urlopen(origin + route, timeout=5)
+                    raise AssertionError(f"Operational route {route} exposed in bootstrap mode")
+                except urllib.error.HTTPError as error:
+                    assert error.code == 404
             print("Published bootstrap starts without services; setup, protected routes and all library assets verified.")
         finally:
             process.terminate()

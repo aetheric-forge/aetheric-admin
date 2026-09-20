@@ -15,7 +15,7 @@
 
     <div class="setup-notice" role="status">
         <strong>Draft workspace</strong> — review and download your envelope here. Queue submission will become
-        available when runtime Operations supports University provisioning. Nothing on this page deploys resources.
+        available when the runtime submission integration is ready. Nothing on this page deploys resources.
         Keep a downloaded copy before reloading or closing this session.
     </div>
 
@@ -77,10 +77,7 @@
                             <ul><li>@Name(Draft.FacultyName, "Administration")
                                 <ul>
                                     <li>@Name(Draft.DecisionsName, "Decisions")</li>
-                                    @if (Draft.IncludeTalent)
-                                    {
-                                        <li>@Name(Draft.TalentName, "Talent")</li>
-                                    }
+
                                 </ul>
                             </li></ul>
                         </li></ul>
@@ -124,7 +121,7 @@
             </div>
             <p>Envelope <code>@_review.EnvelopeId</code> · Standard priority · Not queued</p>
             <a class="download" href="@DownloadUrl" download="university-envelope-draft.json">Download draft envelope</a>
-            <button type="button" disabled title="Waiting for the runtime University provisioning contract">Submit to Operations — coming next</button>
+            <button type="button" disabled title="Waiting for runtime submission integration">Submit to Operations — coming next</button>
             <details><summary>Inspect draft JSON</summary><pre>@_json</pre></details>
         </section>
     }

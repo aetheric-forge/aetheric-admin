@@ -25,6 +25,7 @@ var builder = WebApplication.CreateBuilder(args.Where(x => x != "--initialize-bo
 builder.Services.AddRazorComponents()
     .AddInteractiveServerComponents();
 builder.Services.AddCascadingAuthenticationState();
+builder.Services.AddScoped<UniversityDraftSession>();
 
 // Bootstrap is an explicit deployment mode. It never starts operational Redis/Mongo services.
 if (initializeBootstrap || builder.Configuration.GetValue<bool>("Bootstrap:Enabled"))

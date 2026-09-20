@@ -1,0 +1,170 @@
+@implements IDisposable
+@using System.Text.Json
+@using AethericAdmin.Web.Provisioning
+@inject UniversityDraftSession Session
+@inject IConfiguration Configuration
+
+<PageTitle>University setup · Aetheric Admin</PageTitle>
+
+<main class="university-setup">
+    <header>
+        <p class="eyebrow">Provisioning · New University</p>
+        <h1>Give your University a home.</h1>
+        <p>Define a University, its first Campus, and the Administration Faculty that will serve it.</p>
+    </header>
+
+    <div class="setup-notice" role="status">
+        <strong>Draft workspace</strong> — review and download your envelope here. Queue submission will become
+        available when runtime Operations supports University provisioning. Nothing on this page deploys resources.
+        Keep a downloaded copy before reloading or closing this session.
+    </div>
+
+    <EditForm EditContext="_context" OnValidSubmit="Review" FormName="university-setup">
+        <DataAnnotationsValidator />
+        <ValidationSummary />
+        <div class="setup-grid">
+            <div class="setup-fields">
+                <section aria-labelledby="university-heading">
+                    <p class="eyebrow">01 · Initiating request</p>
+                    <h2 id="university-heading">University</h2>
+                    <label for="university-name">University name</label>
+                    <InputText id="university-name" @bind-Value="Draft.UniversityName" maxlength="100" />
+                    <ValidationMessage For="() => Draft.UniversityName" />
+                    <label for="university-profile">Private resource profile reference <span>(optional)</span></label>
+                    <InputText id="university-profile" @bind-Value="Draft.UniversityResourceProfile" maxlength="200" />
+                    <p class="hint">Reference the University's own resource definition. Leaving this blank keeps the resource bundle undecided.</p>
+
+                    <fieldset>
+                        <legend>Root identity &amp; Keycloak</legend>
+                        <p class="hint">Use the administrator selected during bootstrap. These fields identify that account; they do not create a user or grant permissions.</p>
+                        <label for="keycloak-authority">Keycloak authority</label>
+                        <InputText id="keycloak-authority" @bind-Value="Draft.KeycloakAuthority" placeholder="https://sso.example.org" maxlength="253" />
+                        <ValidationMessage For="() => Draft.KeycloakAuthority" />
+                        <label for="keycloak-realm">Realm</label>
+                        <InputText id="keycloak-realm" @bind-Value="Draft.KeycloakRealm" maxlength="200" />
+                        <label for="keycloak-client">Client ID</label>
+                        <InputText id="keycloak-client" @bind-Value="Draft.KeycloakClientId" maxlength="200" />
+                        <label for="root-subject">Root administrator subject ID</label>
+                        <InputText id="root-subject" @bind-Value="Draft.RootAdministratorSubjectId" maxlength="200" />
+                        <label for="iam-definition">IAM definition reference <span>(optional)</span></label>
+                        <InputText id="iam-definition" @bind-Value="Draft.IamDefinitionReference" maxlength="200" />
+                    </fieldset>
+                    <h3>Root infrastructure credentials</h3>
+                    <p class="hint">The envelope references bootstrap's encrypted store keys: <code>redis</code>,
+                        <code>rabbitmq</code>, <code>postgres</code>, and <code>mongo</code>.
+                        Passwords stay out of this draft. Credential availability has not been checked.</p>
+                </section>
+
+                <section aria-labelledby="campus-heading">
+                    <p class="eyebrow">02 · Within the University</p>
+                    <h2 id="campus-heading">First Campus</h2>
+                    <label for="campus-name">Campus name</label>
+                    <InputText id="campus-name" @bind-Value="Draft.CampusName" maxlength="100" />
+                    <ValidationMessage For="() => Draft.CampusName" />
+                    <label for="campus-profile">Private resource profile reference <span>(optional)</span></label>
+                    <InputText id="campus-profile" @bind-Value="Draft.CampusResourceProfile" maxlength="200" />
+                    <p class="hint">Campus belongs to the University and waits for its provisioning prerequisites.</p>
+                </section>
+
+                <FacultyDesigner Draft="Draft" />
+            </div>
+
+            <aside aria-label="University structure">
+                <h2>Your structure</h2>
+                <ul class="hierarchy">
+                    <li>@Name(Draft.UniversityName, "University")
+                        <ul><li>@Name(Draft.CampusName, "Campus")
+                            <ul><li>@Name(Draft.FacultyName, "Administration")
+                                <ul>
+                                    <li>@Name(Draft.DecisionsName, "Decisions")</li>
+                                    @if (Draft.IncludeTalent)
+                                    {
+                                        <li>@Name(Draft.TalentName, "Talent")</li>
+                                    }
+                                </ul>
+                            </li></ul>
+                        </li></ul>
+                    </li>
+                </ul>
+                <dl>
+                    <dt>Priority</dt><dd>Standard</dd>
+                    <dt>Execution service</dt><dd>Runtime Operations</dd>
+                    <dt>Causal root</dt><dd>University request</dd>
+                </dl>
+                <p class="hint">Every child request is directly caused by the University request. Parent references describe where it belongs.</p>
+                <button type="submit" class="primary">Review envelope</button>
+            </aside>
+        </div>
+    </EditForm>
+
+    @if (_review is not null)
+    {
+        <section class="envelope-review" aria-labelledby="review-heading" aria-live="polite">
+            <p class="eyebrow">Review · @_review.Requests.Length requests</p>
+            <h2 id="review-heading">One University, one envelope</h2>
+            <p>This is a draft for the provisioner contract, not an executable plan. Resource profiles, IAM definitions,
+                credential resolution, and provider bindings still require runtime validation.</p>
+            <div class="table-scroll">
+                <table>
+                    <caption>Containment, causality, and execution order</caption>
+                    <thead><tr><th scope="col">Request</th><th scope="col">Parent</th><th scope="col">Caused by</th><th scope="col">Waits for</th><th scope="col">Private resource profile</th></tr></thead>
+                    <tbody>
+                        @foreach (var request in _review.Requests)
+                        {
+                            <tr>
+                                <th scope="row">@request.Name <small>@request.Kind</small></th>
+                                <td>@RequestName(request.ParentRequestId)</td>
+                                <td>@(request.CausedByRequestId is null ? "Operator submission" : RequestName(request.CausedByRequestId))</td>
+                                <td>@(request.DependsOn.Length == 0 ? "None" : string.Join(", ", request.DependsOn.Select(id => RequestName(id))))</td>
+                                <td>@(request.PrivateResourceProfileReference ?? "To be defined")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            <p>Envelope <code>@_review.EnvelopeId</code> · Standard priority · Not queued</p>
+            <a class="download" href="@DownloadUrl" download="university-envelope-draft.json">Download draft envelope</a>
+            <button type="button" disabled title="Waiting for the runtime University provisioning contract">Submit to Operations — coming next</button>
+            <details><summary>Inspect draft JSON</summary><pre>@_json</pre></details>
+        </section>
+    }
+</main>
+
+@code {
+    private UniversityDraft Draft => Session.Draft;
+    private EditContext _context = default!;
+    private UniversityEnvelopeDraft? _review;
+    private string? _json;
+    private string DownloadUrl => "data:application/json;charset=utf-8," + Uri.EscapeDataString(_json ?? "");
+
+    protected override void OnInitialized()
+    {
+        // Existing deployment configuration supplies suggestions, not identity verification.
+        if (string.IsNullOrEmpty(Draft.KeycloakAuthority))
+            Draft.KeycloakAuthority = Configuration["Keycloak:Authority"] ?? "";
+        if (string.IsNullOrEmpty(Draft.KeycloakRealm))
+            Draft.KeycloakRealm = Configuration["Keycloak:Realm"] ?? "";
+        if (string.IsNullOrEmpty(Draft.KeycloakClientId))
+            Draft.KeycloakClientId = Configuration["Keycloak:ClientId"] ?? "";
+        _context = new(Draft);
+        _context.OnFieldChanged += InvalidateReview;
+    }
+
+    private void Review()
+    {
+        _review = Draft.Review();
+        _json = JsonSerializer.Serialize(_review, new JsonSerializerOptions(JsonSerializerDefaults.Web) { WriteIndented = true });
+    }
+
+    private void InvalidateReview(object? sender, FieldChangedEventArgs args)
+    {
+        _review = null;
+        _json = null;
+        // A field can belong to the child Faculty designer; refresh this parent's review too.
+        StateHasChanged();
+    }
+
+    private string RequestName(Guid? id) => _review?.Requests.FirstOrDefault(x => x.RequestId == id)?.Name ?? "—";
+    private static string Name(string value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
+    public void Dispose() => _context.OnFieldChanged -= InvalidateReview;
+}

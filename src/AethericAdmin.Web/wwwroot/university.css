@@ -1,0 +1,43 @@
+.university-setup { max-width: 1120px; margin: 3rem auto; padding: 0 1.25rem; font: 16px/1.6 system-ui, sans-serif; color: #203539; }
+.university-setup * { box-sizing: border-box; }
+.university-setup h1 { font-size: clamp(1.8rem, 4vw, 2.8rem); line-height: 1.2; letter-spacing: -.04em; margin: .4rem 0 1rem; }
+.university-setup h2 { font-size: 1.35rem; margin: .3rem 0 1rem; }
+.university-setup h3 { font-size: 1rem; margin-bottom: .3rem; }
+.university-setup .eyebrow { text-transform: uppercase; letter-spacing: .12em; font-size: .75rem; font-weight: 700; color: #486968; margin: 0; }
+.university-setup header { max-width: 720px; margin-bottom: 2rem; }
+.university-setup .setup-notice { background: #f3f5ec; border-left: 3px solid #819452; padding: 1rem 1.25rem; margin-bottom: 2rem; }
+.university-setup .setup-grid { display: grid; grid-template-columns: minmax(0, 2fr) minmax(260px, 1fr); gap: 2rem; align-items: start; }
+.university-setup section { border: 1px solid #d9e3df; border-radius: 10px; padding: 1.5rem; margin-bottom: 1.5rem; background: #fff; }
+.university-setup label { display: block; font-weight: 600; margin-top: 1rem; margin-bottom: .35rem; }
+.university-setup label span { font-weight: 400; color: #546a6e; }
+.university-setup input:not([type=checkbox]) { display: block; width: 100%; padding: .7rem .8rem; font: inherit; color: inherit; border: 1px solid #aebfbb; border-radius: 5px; background: #fff; }
+.university-setup input:focus-visible, .university-setup button:focus-visible, .university-setup a:focus-visible, .university-setup summary:focus-visible { outline: 3px solid #367b76; outline-offset: 3px; }
+.university-setup input[type=checkbox] { width: 1.2rem; height: 1.2rem; accent-color: #245e58; }
+.university-setup .checkbox { display: flex; align-items: center; gap: .6rem; }
+.university-setup .hint { color: #546a6e; font-size: .9rem; margin: .6rem 0; }
+.university-setup fieldset { border: 0; border-top: 1px solid #d9e3df; margin: 1.5rem 0; padding: 1rem 0 0; min-width: 0; }
+.university-setup legend { font-weight: 700; padding-right: .6rem; }
+.university-setup aside { position: sticky; top: 1.5rem; background: #edf4f1; padding: 1.5rem; border-radius: 10px; overflow-wrap: anywhere; }
+.university-setup .hierarchy, .university-setup .hierarchy ul { list-style: none; padding-left: 1rem; }
+.university-setup .hierarchy { padding: 0; }
+.university-setup .hierarchy ul { border-left: 1px solid #abc2ba; margin: .5rem 0 .5rem .3rem; }
+.university-setup .hierarchy li { padding: .15rem 0; }
+.university-setup dt { font-size: .75rem; text-transform: uppercase; letter-spacing: .07em; margin-top: 1rem; }
+.university-setup dd { margin: 0; font-weight: 600; }
+.university-setup button, .university-setup .download { display: inline-block; font: inherit; font-weight: 600; padding: .7rem 1rem; border: 1px solid #aebfbb; border-radius: 5px; cursor: pointer; text-decoration: none; margin: .5rem .5rem .5rem 0; }
+.university-setup .primary, .university-setup .download { background: #245e58; color: #fff; border-color: #245e58; }
+.university-setup button:disabled { cursor: not-allowed; color: #596866; background: #edf0ee; }
+.university-setup .table-scroll { overflow-x: auto; }
+.university-setup table { width: 100%; border-collapse: collapse; text-align: left; }
+.university-setup caption { text-align: left; font-size: .85rem; color: #546a6e; margin-bottom: .5rem; }
+.university-setup td, .university-setup th { padding: .8rem; border-bottom: 1px solid #d9e3df; vertical-align: top; overflow-wrap: anywhere; }
+.university-setup small { display: block; color: #546a6e; font-weight: 400; }
+.university-setup code { overflow-wrap: anywhere; }
+.university-setup pre { overflow: auto; max-height: 32rem; background: #f3f6f4; padding: 1rem; font-size: .8rem; }
+.university-setup details { margin-top: 1rem; }
+.university-setup summary { cursor: pointer; }
+@media (max-width: 760px) {
+    .university-setup .setup-grid { grid-template-columns: 1fr; }
+    .university-setup aside { position: static; margin-bottom: 1.5rem; }
+    .university-setup section { padding: 1.1rem; }
+}

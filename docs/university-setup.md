@@ -1,12 +1,12 @@
 # University setup draft
 
-Normal admin mode exposes `/university` through the home page and navigation. It contains the University and Campus forms, an initial Administration Faculty designer, required Decisions, and optional Talent. Bootstrap mode deliberately does not expose this route. Its existing Keycloak/infrastructure credential collection remains unchanged.
+Normal admin mode exposes `/university` through the home page and navigation. It contains the University and Campus forms, an initial Administration Faculty designer, required Decisions (Talent is deferred). Bootstrap mode deliberately does not expose this route. Its existing Keycloak/infrastructure credential collection remains unchanged.
 
 ## Current behavior
 
 Enter the names and the existing Keycloak authority, realm, client ID, and root administrator subject ID. Normal admin's Keycloak settings prefill the connection identifiers when configured. These are editable draft values, not proof of identity or permission. The page never retrieves bootstrap passwords or claims to have verified the selected account.
 
-Private resource profile references for University, Campus, and Faculty, and the University IAM definition reference, are optional pending the agreed definitions. Empty values appear as unresolved in review; typing a reference does not validate or provision it. Decisions' resource ownership is described from its existing definition, but this draft does not load that definition or resolve its bindings. Talent is omitted entirely until selected.
+Private resource profile references for University, Campus, and Faculty, and the University IAM definition reference, are optional pending the agreed definitions. Empty values appear as unresolved in review; typing a reference does not validate or provision it. Decisions' resource ownership is described from its existing definition, but this draft does not load that definition or resolve its bindings. Talent is not offered by this initial bootstrap; selecting it in a programmatic draft is rejected.
 
 Review validates the required fields and produces an immutable snapshot. Editing any field clears the review and download until the operator reviews again. The responsive review shows containment, causality, and prerequisites separately and permits downloading a JSON draft without credential values. The UI explicitly says nothing has been queued or deployed.
 
@@ -22,9 +22,8 @@ Draft values and IDs live in the current interactive server circuit only. Reload
 | Campus | University | University | University |
 | Administration Faculty | Campus | University | Campus |
 | Decisions Institution | Administration | University | Administration |
-| Talent Institution (optional) | Administration | University | Administration |
 
-The envelope has its own ID, the initiating University request ID, and `Standard` priority. Each request has a stable ID. Names can change without changing IDs; removing and restoring Talent within the same draft preserves its ID. Request dependencies are conservative parent prerequisites; Decisions and Talent have no dependency on each other. They are not provider-level resource plans.
+The envelope has its own ID, the initiating University request ID, and `Standard` priority. Each request has a stable ID. Names can change without changing IDs. Request dependencies are conservative parent prerequisites; Decisions depends on Administration. They are not provider-level resource plans.
 
 Keycloak identity metadata and the IAM definition reference belong to the University envelope. Root credential references use the existing encrypted bootstrap store's system keys (`redis`, `rabbitmq`, `postgres`, `mongo`). They are local lookup keys, not universally resolvable secret URIs. Credential availability, transport, target scope, and authorization must be checked by the eventual submission integration. No Keycloak client secret is included or inferred.
 
@@ -38,4 +37,6 @@ Before enabling submission, agree the resource profiles, technology bindings, an
 
 ## Verification
 
-`UniversityDraftTests` covers direct University causation, containment, dependency ordering, optional Talent and stable IDs, immutable review snapshots, credential-reference serialization, invalid identity inputs, required fields, separate operator sessions, and rendering without infrastructure. The bootstrap smoke script checks that both maintenance and University routes remain inaccessible in bootstrap mode. Browser interaction and live University deployment are not claimed by these checks.
+`UniversityDraftTests` covers direct University causation, containment, dependency ordering, unsupported Talent and stable IDs, immutable review snapshots, credential-reference serialization, invalid identity inputs, required fields, separate operator sessions, and rendering without infrastructure. The bootstrap smoke script checks that both maintenance and University routes remain inaccessible in bootstrap mode. Browser interaction and live University deployment are not claimed by these checks.
+
+The [draft-to-runtime mapping](bootstrap-contract-mapping.md) specifies every field and the conditions required before a future submission adapter can publish. Runtime and admin test the same canonical wire fixtures.

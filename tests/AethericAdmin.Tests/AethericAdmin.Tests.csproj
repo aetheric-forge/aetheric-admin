@@ -15,4 +15,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <ProjectReference Include="../../src/AethericAdmin.Web/AethericAdmin.Web.csproj" />
   </ItemGroup>
+  <ItemGroup>
+    <None Include="../../runtime/docs/provisioning/contracts/bootstrap-v1/*.json" Link="BootstrapContractFixtures/%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+  </ItemGroup>
 </Project>

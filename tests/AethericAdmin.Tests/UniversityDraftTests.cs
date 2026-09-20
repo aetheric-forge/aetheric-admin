@@ -18,11 +18,10 @@ public sealed class UniversityDraftTests
     public void Containment_and_causation_are_distinct_and_dependencies_are_topological()
     {
         var draft = ValidDraft();
-        draft.IncludeTalent = true;
         var envelope = draft.Review();
         Assert.Equal("Standard", envelope.Priority);
         Assert.Equal(draft.UniversityId, envelope.InitiatingRequestId);
-        Assert.Equal(5, envelope.Requests.Length);
+        Assert.Equal(4, envelope.Requests.Length);
         var university = envelope.Requests[0];
         Assert.Null(university.ParentRequestId);
         Assert.Null(university.CausedByRequestId);
@@ -30,7 +29,6 @@ public sealed class UniversityDraftTests
         Assert.Equal(draft.UniversityId, envelope.Requests[1].ParentRequestId);
         Assert.Equal(draft.CampusId, envelope.Requests[2].ParentRequestId);
         Assert.Equal(draft.FacultyId, envelope.Requests[3].ParentRequestId);
-        Assert.Equal(draft.FacultyId, envelope.Requests[4].ParentRequestId);
         var seen = new HashSet<Guid> { university.RequestId };
         foreach (var request in envelope.Requests.Skip(1))
         {
@@ -42,23 +40,21 @@ public sealed class UniversityDraftTests
     }
 
     [Fact]
-    public void Optional_talent_is_absent_until_selected_and_keeps_its_identity_across_edits()
+    public void Talent_is_explicitly_rejected_and_four_institution_ids_survive_edits()
     {
         var draft = ValidDraft();
         var original = draft.Review();
-        Assert.DoesNotContain(original.Requests, x => x.Kind == "Talent");
         draft.IncludeTalent = true;
-        var withTalent = draft.Review();
+        var error = Assert.Throws<ValidationException>(() => draft.Review());
+        Assert.Contains("Talent is not supported", error.Message);
         draft.IncludeTalent = false;
-        Assert.Equal(4, draft.Review().Requests.Length);
-        draft.IncludeTalent = true;
-        draft.TalentName = "People";
+        draft.DecisionsName = "Decisions council";
         var edited = draft.Review();
+        Assert.Equal(4, edited.Requests.Length);
         Assert.Equal(original.EnvelopeId, edited.EnvelopeId);
-        Assert.Equal(withTalent.Requests.Select(x => x.RequestId), edited.Requests.Select(x => x.RequestId));
-        Assert.Equal("Talent", withTalent.Requests[^1].Name);
-        Assert.Equal("People", edited.Requests[^1].Name);
-        Assert.Equal(withTalent.Requests[^2].DependsOn.ToArray(), withTalent.Requests[^1].DependsOn.ToArray());
+        Assert.Equal(original.Requests.Select(x => x.RequestId), edited.Requests.Select(x => x.RequestId));
+        Assert.Equal("Decisions", original.Requests[^1].Name);
+        Assert.Equal("Decisions council", edited.Requests[^1].Name);
     }
 
     [Fact]
@@ -93,7 +89,7 @@ public sealed class UniversityDraftTests
     }
 
     [Fact]
-    public void Required_names_and_enabled_talent_are_validated()
+    public void Required_names_and_unsupported_talent_are_validated()
     {
         var draft = ValidDraft();
         draft.UniversityName = " ";
@@ -132,7 +128,7 @@ public sealed class UniversityDraftTests
         Assert.Contains("Campus name", html);
         Assert.Contains("Administration Faculty", html);
         Assert.Contains("Decisions Institution", html);
-        Assert.Contains("Include a Talent Institution", html);
+        Assert.DoesNotContain("Include a Talent Institution", html);
         Assert.Contains("Review envelope", html);
         Assert.DoesNotContain("Download draft envelope", html);
         Assert.Contains("Nothing on this page deploys resources", html);

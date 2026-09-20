@@ -45,10 +45,8 @@ public sealed class UniversityDraft : IValidatableObject
 
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
-        if (IncludeTalent && (string.IsNullOrWhiteSpace(TalentName) || TalentName.Length > 100))
-            yield return new("Enter a Talent institution name of at most 100 characters.", [nameof(TalentName)]);
-        if (IncludeTalent && string.Equals(TalentName.Trim(), DecisionsName.Trim(), StringComparison.OrdinalIgnoreCase))
-            yield return new("Give Decisions and Talent distinct names within the Faculty.", [nameof(TalentName)]);
+        if (IncludeTalent)
+            yield return new("Talent is not supported by the initial University bootstrap. Deselect Talent to continue.", [nameof(IncludeTalent)]);
         if (!Uri.TryCreate(KeycloakAuthority, UriKind.Absolute, out var uri)
             || uri.Scheme != "https" || string.IsNullOrEmpty(uri.Host)
             || !string.IsNullOrEmpty(uri.UserInfo) || !string.IsNullOrEmpty(uri.Query)
@@ -64,8 +62,6 @@ public sealed class UniversityDraft : IValidatableObject
         requests.Add(new(CampusId, "Campus", CampusName.Trim(), UniversityId, UniversityId, [UniversityId], Profile(CampusResourceProfile)));
         requests.Add(new(FacultyId, "Faculty", FacultyName.Trim(), CampusId, UniversityId, [CampusId], Profile(FacultyResourceProfile)));
         requests.Add(new(DecisionsId, "Decisions", DecisionsName.Trim(), FacultyId, UniversityId, [FacultyId], null));
-        if (IncludeTalent)
-            requests.Add(new(TalentId, "Talent", TalentName.Trim(), FacultyId, UniversityId, [FacultyId], null));
 
         return new("aetheric-admin/university-draft/v1", EnvelopeId, UniversityId, "Standard",
             new(KeycloakAuthority.Trim().TrimEnd('/'), KeycloakRealm.Trim(), KeycloakClientId.Trim(),

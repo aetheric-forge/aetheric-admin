@@ -4,7 +4,7 @@ Backend integration host for the Aetheric Forge. The current Blazor app hosts Wo
 
 Initialize pinned dependencies with `git submodule update --init --recursive`, then build with `dotnet build --configuration Release`.
 
-Normal admin mode also includes [University setup](docs/university-setup.md) at `/university`: an initial University → Campus → Administration designer with Decisions, optional Talent, and a downloadable envelope draft. Runtime now defines the bootstrap contract; submission still needs a draft adapter and credential/result integration. See the [runtime integration review](docs/runtime-bootstrap-review.md).
+Normal admin mode also includes [University setup](docs/university-setup.md) at `/university`: an initial University → Campus → Administration designer with Decisions, and a downloadable envelope draft. Runtime now defines the bootstrap contract; submission still needs a draft adapter and credential/result integration. See the [contract mapping](docs/bootstrap-contract-mapping.md) and [runtime integration review](docs/runtime-bootstrap-review.md).
 
 See [Redis persistence](docs/redis-persistence.md) for run-history and Data Protection configuration, migration, deployment limits, and test commands. Job definitions, encrypted credentials, and membership applications also require the MongoDB settings in `appsettings.json`. Outside Development, authentication uses the configured Keycloak client.
 

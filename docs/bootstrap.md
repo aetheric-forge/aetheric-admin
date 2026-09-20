@@ -60,7 +60,7 @@ After this phase, disable `Bootstrap:Enabled` and restart only when normal admin
 
 ## Dependency and verification notes
 
-The runtime pin is `6c55d21f486a349ad4beb671a4b72726bf2485bd` (main, campus post subscription). `Directory.Build.targets` makes provisioning's Registry adapter reference this same runtime, avoiding a second assembly copy through nested submodules. Membership also resolves the root primitives copy to avoid losing duplicate project dependencies from the published manifest. Its internal HTTP-handler test seam is exposed to `AethericAdmin.Tests` for controlled Keycloak integration fixtures. No submodule source changes are required.
+The runtime pin is `0889cc6c6d9a21408b2fbe75c202b8f18abc657a` (main, institution bootstrap envelope; runtime PR #30). `Directory.Build.targets` makes provisioning's Registry adapter reference this same runtime, avoiding a second assembly copy through nested submodules. Membership also resolves the root primitives copy to avoid losing duplicate project dependencies from the published manifest. Its internal HTTP-handler test seam is exposed to `AethericAdmin.Tests` for controlled Keycloak integration fixtures. No submodule source changes are required.
 
 `AethericAdmin.BootstrapShell` only owns the bootstrap HTML document/router. A separate assembly lets endpoint discovery exclude operational admin pages completely. Workflow pages and assets come from `aetheric-web-components`, not copied Razor files.
 

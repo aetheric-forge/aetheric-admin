@@ -1,7 +1,12 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using Aetheric.Provisioning.Engine;
 using AethericAdmin.Web.Components.Provisioning;
 using AethericAdmin.Web.Provisioning;
+using AethericForge.Runtime.Abstractions.Interfaces.Post;
+using AethericForge.Runtime.Abstractions.Interfaces.Post.Consumers;
+using AethericForge.Runtime.Abstractions.Interfaces.Post.Primitives;
+using AethericForge.Runtime.Abstractions.Interfaces.Post.Services;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Forms;
 using Microsoft.AspNetCore.Components.Web;
@@ -66,7 +71,7 @@ public sealed class UniversityDraftTests
         Assert.Equal("Aetheric University", review.Requests[0].Name);
         Assert.All(review.Requests, x => Assert.Null(x.PrivateResourceProfileReference));
         Assert.Null(review.Identity.IamDefinitionReference);
-        Assert.Equal(new[] { "redis", "rabbitmq", "postgres", "mongo" }, review.RootCredentialReferences.Select(x => x.StoreKey));
+        Assert.Equal(new[] { "rabbitmq", "mongo", "keycloak", "s3", "redis" }, review.RootCredentialReferences.Select(x => x.StoreKey));
         var json = JsonSerializer.Serialize(review);
         Assert.DoesNotContain("Password", json, StringComparison.OrdinalIgnoreCase);
         Assert.DoesNotContain("ClientSecret", json, StringComparison.OrdinalIgnoreCase);
@@ -120,6 +125,10 @@ public sealed class UniversityDraftTests
         services.AddLogging();
         services.AddSingleton<UniversityDraftSession>();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton<IRootCredentialStore, NoCredentials>();
+        services.AddSingleton<IPostService, UnusedPostService>();
+        services.AddSingleton<UniversityBootstrapSubmission>();
+        services.AddSingleton<BootstrapResultStore>();
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         var html = await renderer.Dispatcher.InvokeAsync(async () =>
@@ -131,7 +140,8 @@ public sealed class UniversityDraftTests
         Assert.DoesNotContain("Include a Talent Institution", html);
         Assert.Contains("Review envelope", html);
         Assert.DoesNotContain("Download draft envelope", html);
-        Assert.Contains("Nothing on this page deploys resources", html);
+        Assert.Contains("Draft workspace", html);
+        Assert.DoesNotContain("Submit to Operations", html); // only appears once a review exists
     }
 
     private static UniversityDraft ValidDraft() => new()
@@ -157,6 +167,10 @@ public sealed class UniversityDraftTests
         services.AddSingleton(session);
         services.AddSingleton<IComponentActivator>(activator);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton<IRootCredentialStore, NoCredentials>();
+        services.AddSingleton<IPostService, UnusedPostService>();
+        services.AddSingleton<UniversityBootstrapSubmission>();
+        services.AddSingleton<BootstrapResultStore>();
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
         await renderer.Dispatcher.InvokeAsync(async () =>
@@ -185,5 +199,22 @@ public sealed class UniversityDraftTests
             if (component is EditForm form) Form = form;
             return component;
         }
+    }
+
+    // These two rendering tests never click "Submit to Operations" - UniversitySetup.razor just
+    // needs something to inject; neither is ever called.
+    private sealed class NoCredentials : IRootCredentialStore
+    {
+        public Task SetAsync(string system, RootCredential credential, CancellationToken ct) => throw new NotSupportedException();
+        public Task<RootCredential?> TryReadAsync(string system, CancellationToken ct) => throw new NotSupportedException();
+    }
+    private sealed class UnusedPostService : IPostService
+    {
+        public Task<IPostReference> AcceptAsync(IPostEnvelope envelope, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task<IPostEnvelope?> CollectAsync(IPostReference reference, CancellationToken ct = default) => throw new NotSupportedException();
+        public Task PublishAsync<TMessage>(IPostReference reference, TMessage message, IPostMetadata? metadata = null, CancellationToken ct = default) =>
+            throw new NotSupportedException();
+        public Task SubscribeAsync<TMessage>(IPostReference reference, IMessageConsumer<TMessage> consumer, CancellationToken ct = default) =>
+            throw new NotSupportedException();
     }
 }

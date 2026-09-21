@@ -3,6 +3,8 @@
 @using AethericAdmin.Web.Provisioning
 @inject UniversityDraftSession Session
 @inject IConfiguration Configuration
+@inject UniversityBootstrapSubmission Submission
+@inject BootstrapResultStore ResultStore
 
 <PageTitle>University setup · Aetheric Admin</PageTitle>
 
@@ -14,9 +16,8 @@
     </header>
 
     <div class="setup-notice" role="status">
-        <strong>Draft workspace</strong> — review and download your envelope here. Queue submission will become
-        available when the runtime submission integration is ready. Nothing on this page deploys resources.
-        Keep a downloaded copy before reloading or closing this session.
+        <strong>Draft workspace</strong> — review your envelope, then submit it to Operations. Keep a downloaded
+        copy before reloading or closing this session.
     </div>
 
     <EditForm EditContext="_context" OnValidSubmit="Review" FormName="university-setup">
@@ -50,9 +51,10 @@
                         <InputText id="iam-definition" @bind-Value="Draft.IamDefinitionReference" maxlength="200" />
                     </fieldset>
                     <h3>Root infrastructure credentials</h3>
-                    <p class="hint">The envelope references bootstrap's encrypted store keys: <code>redis</code>,
-                        <code>rabbitmq</code>, <code>postgres</code>, and <code>mongo</code>.
-                        Passwords stay out of this draft. Credential availability has not been checked.</p>
+                    <p class="hint">Submission resolves root credentials from the encrypted store by system:
+                        <code>rabbitmq</code>, <code>mongo</code>, <code>keycloak</code>, <code>s3</code>, and
+                        <code>redis</code>. Passwords stay out of this draft. Add any missing credential before
+                        submitting.</p>
                 </section>
 
                 <section aria-labelledby="campus-heading">
@@ -119,9 +121,36 @@
                     </tbody>
                 </table>
             </div>
-            <p>Envelope <code>@_review.EnvelopeId</code> · Standard priority · Not queued</p>
+            <p>Envelope <code>@_review.EnvelopeId</code> · Standard priority · @(_submittedRequestId is null ? "Not queued" : "Queued")</p>
             <a class="download" href="@DownloadUrl" download="university-envelope-draft.json">Download draft envelope</a>
-            <button type="button" disabled title="Waiting for runtime submission integration">Submit to Operations — coming next</button>
+            <button type="button" disabled="@(_submitting || _submittedRequestId is not null)" @onclick="Submit">
+                @(_submitting ? "Submitting…" : _submittedRequestId is not null ? "Submitted" : "Submit to Operations")
+            </button>
+            @if (_submitError is not null)
+            {
+                <p role="alert" class="setup-error">@_submitError</p>
+            }
+            @if (_submittedRequestId is { } requestId)
+            {
+                <div class="submission-status" role="status" aria-live="polite">
+                    <p>Submitted as <code>@requestId</code>.</p>
+                    <button type="button" @onclick="RefreshStatus">Check status</button>
+                    @if (_result is null)
+                    {
+                        <p>Waiting for Operations to report a result…</p>
+                    }
+                    else
+                    {
+                        <p>@(_result.Succeeded ? "Succeeded" : "Failed") as of @_result.CompletedAtUtc.ToString("u")</p>
+                        <ul>
+                            @foreach (var step in _result.Steps)
+                            {
+                                <li>@step.Step: @step.Status @(step.Issues.Count > 0 ? "(" + string.Join("; ", step.Issues) + ")" : "")</li>
+                            }
+                        </ul>
+                    }
+                </div>
+            }
             <details><summary>Inspect draft JSON</summary><pre>@_json</pre></details>
         </section>
     }
@@ -133,6 +162,10 @@
     private UniversityEnvelopeDraft? _review;
     private string? _json;
     private string DownloadUrl => "data:application/json;charset=utf-8," + Uri.EscapeDataString(_json ?? "");
+    private bool _submitting;
+    private string? _submitError;
+    private Guid? _submittedRequestId;
+    private InstitutionBootstrapCompleted? _result;
 
     protected override void OnInitialized()
     {
@@ -163,5 +196,31 @@
 
     private string RequestName(Guid? id) => _review?.Requests.FirstOrDefault(x => x.RequestId == id)?.Name ?? "—";
     private static string Name(string value, string fallback) => string.IsNullOrWhiteSpace(value) ? fallback : value;
+
+    private async Task Submit()
+    {
+        if (_review is null || _submitting) return;
+        _submitting = true;
+        _submitError = null;
+        try
+        {
+            _submittedRequestId = await Submission.SubmitAsync(_review, default);
+        }
+        catch (Exception ex)
+        {
+            _submitError = ex.Message;
+        }
+        finally
+        {
+            _submitting = false;
+        }
+    }
+
+    private void RefreshStatus()
+    {
+        if (_submittedRequestId is { } requestId)
+            _result = ResultStore.TryGet(requestId);
+    }
+
     public void Dispose() => _context.OnFieldChanged -= InvalidateReview;
 }

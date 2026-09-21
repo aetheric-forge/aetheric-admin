@@ -66,7 +66,7 @@ public sealed class UniversityDraft : IValidatableObject
         return new("aetheric-admin/university-draft/v1", EnvelopeId, UniversityId, "Standard",
             new(KeycloakAuthority.Trim().TrimEnd('/'), KeycloakRealm.Trim(), KeycloakClientId.Trim(),
                 RootAdministratorSubjectId.Trim(), Profile(IamDefinitionReference)),
-            [new("redis", "redis"), new("rabbitmq", "rabbitmq"), new("postgres", "postgres"), new("mongo", "mongo")],
+            [new("rabbitmq", "rabbitmq"), new("mongo", "mongo"), new("keycloak", "keycloak"), new("s3", "s3"), new("redis", "redis")],
             requests.ToImmutable());
     }
 

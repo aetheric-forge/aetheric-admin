@@ -58,6 +58,12 @@ if (initializeBootstrap || builder.Configuration.GetValue<bool>("Bootstrap:Enabl
 // this whole app is admin-only, there's no tiered public/member/maintainer policy to reproduce.
 var requireAuth = !builder.Environment.IsDevelopment();
 
+// Fills in Keycloak/RabbitMq/Redis/Maintenance+Membership Mongo config from state the bootstrap
+// flow already collected, wherever the operator hasn't explicitly set it - see
+// OperationalConfiguration's own doc comment for why this is safe to derive rather than requiring
+// it to be hand-typed a second time.
+await builder.ApplyDerivedDefaultsAsync();
+
 if (requireAuth)
 {
     builder.Services.AddAuthentication(options =>
@@ -68,7 +74,14 @@ if (requireAuth)
         .AddCookie()
         .AddOpenIdConnect(options =>
         {
-            options.Authority = $"{builder.Configuration["Keycloak:Authority"]}/realms/{builder.Configuration["Keycloak:Realm"]}";
+            // A derived Authority is already the full issuer URL (state.Settings.Issuer);
+            // an explicitly-configured Authority is still the older bare-authority-plus-realm
+            // shape - detect which one we have rather than requiring every deployment to move
+            // to the combined form.
+            var authority = builder.Configuration["Keycloak:Authority"] ?? "";
+            options.Authority = authority.Contains("/realms/", StringComparison.Ordinal)
+                ? authority
+                : $"{authority}/realms/{builder.Configuration["Keycloak:Realm"]}";
             options.ClientId = builder.Configuration["Keycloak:ClientId"];
             options.ClientSecret = builder.Configuration["Keycloak:ClientSecret"];
             options.ResponseType = OpenIdConnectResponseType.Code;

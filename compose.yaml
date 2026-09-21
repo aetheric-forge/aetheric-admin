@@ -1,0 +1,34 @@
+# Normal-mode operation, run after compose.bootstrap.yaml has been completed once. Shares that
+# file's bootstrap-state/root-credentials/root-key volumes (same directory, default project name,
+# so Compose resolves them to the same volumes without any extra configuration) so this container
+# reads exactly what the bootstrap container already collected - the OIDC client the administrator
+# signed in with, and the redis/rabbitmq/mongo root credentials from the infrastructure setup
+# wizard - and derives its own RabbitMq/Redis/Mongo/Keycloak configuration from them at startup
+# (see OperationalConfiguration.cs) instead of requiring any of it set by hand here. Does not need
+# compose.bootstrap.yaml's bootstrap-protection volume: that one exists only because bootstrap mode
+# cannot depend on the Redis connection it is still collecting - normal mode already has Redis, and
+# uses it (not the filesystem) for Data Protection key storage.
+services:
+  admin:
+    build: .
+    image: aetheric-admin:latest
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      ASPNETCORE_ENVIRONMENT: ${ASPNETCORE_ENVIRONMENT:-Production}
+      ASPNETCORE_URLS: http://127.0.0.1:5180
+      BootstrapConnection__StateDirectory: /data/bootstrap
+      RootCredentials__Directory: /data/root-credentials
+      RootCredentials__KeyDirectory: /data/root-key
+    volumes:
+      - bootstrap-state:/data/bootstrap
+      - root-credentials:/data/root-credentials
+      - root-key:/data/root-key
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+volumes:
+  bootstrap-state:
+  root-credentials:
+  root-key:

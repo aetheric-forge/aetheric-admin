@@ -1,9 +1,10 @@
 @implements IDisposable
 @using System.Text.Json
 @using AethericAdmin.Web.Provisioning
+@using Microsoft.Extensions.DependencyInjection
 @inject UniversityDraftSession Session
 @inject IConfiguration Configuration
-@inject UniversityBootstrapSubmission Submission
+@inject IServiceProvider Services
 @inject BootstrapResultStore ResultStore
 
 <PageTitle>University setup · Aetheric Admin</PageTitle>
@@ -204,7 +205,11 @@
         _submitError = null;
         try
         {
-            _submittedRequestId = await Submission.SubmitAsync(_review, default);
+            // Resolved lazily, not @inject'd: UniversityBootstrapSubmission needs a working
+            // IPostService/IPostProvider (RabbitMq), which shouldn't be required just to load
+            // and review a draft - only once the operator actually tries to submit it.
+            var submission = Services.GetRequiredService<UniversityBootstrapSubmission>();
+            _submittedRequestId = await submission.SubmitAsync(_review, default);
         }
         catch (Exception ex)
         {

@@ -106,6 +106,11 @@ public sealed class BootstrapWorkflowTests
             Assert.Equal("/setup/infrastructure", callback.Headers.Location!.ToString());
             Assert.Contains("Redis", await host.Client.GetStringAsync("/setup/infrastructure"));
             var infrastructurePage = await host.Client.GetStringAsync("/setup/infrastructure");
+            Assert.Contains("Keycloak</h2>", infrastructurePage);
+            Assert.Contains("S3</h2>", infrastructurePage);
+            Assert.Contains("name=\"realm\"", infrastructurePage);
+            Assert.Contains("name=\"forcePathStyle\"", infrastructurePage);
+            Assert.Contains($"0 of {InfrastructureConnections.Systems.Length} connections verified", infrastructurePage);
             var csrf = WebUtility.HtmlDecode(System.Text.RegularExpressions.Regex.Match(infrastructurePage,
                 "name=\"__RequestVerificationToken\"[^>]*value=\"([^\"]+)\"").Groups[1].Value);
             var save = new Dictionary<string,string> { ["__RequestVerificationToken"] = csrf };
@@ -114,7 +119,10 @@ public sealed class BootstrapWorkflowTests
                 var fields = new Dictionary<string,string> { ["__RequestVerificationToken"] = csrf,
                     ["system"] = system, ["host"] = "localhost", ["port"] = "1234", ["username"] = "root",
                     ["password"] = "do-not-echo-root-password", ["url"] = "http://localhost:15672/",
-                    ["database"] = "postgres", ["authDatabase"] = "admin", ["directConnection"] = "true" };
+                    ["database"] = "postgres", ["authDatabase"] = "admin", ["directConnection"] = "true",
+                    ["realm"] = "master", ["clientId"] = "admin-cli", ["region"] = "us-east-1", ["forcePathStyle"] = "true" };
+                if (system == "keycloak") fields["url"] = "https://identity.example/auth/";
+                if (system == "s3") fields["url"] = "http://storage.example:9000/";
                 var test = await host.Client.PostAsync("/setup/infrastructure/test",new FormUrlEncodedContent(fields));
                 Assert.Equal(HttpStatusCode.OK,test.StatusCode);
                 var json = await test.Content.ReadAsStringAsync();
@@ -129,6 +137,15 @@ public sealed class BootstrapWorkflowTests
             Assert.False((await host.App.Services.GetRequiredService<IInfrastructureStateStore>().ReadAsync(default))!.Completed);
             save["redis.password"]="do-not-echo-root-password";
             Assert.Equal(HttpStatusCode.OK,(await host.Client.PostAsync("/setup/infrastructure/save",new FormUrlEncodedContent(save))).StatusCode);
+            var credentials = host.App.Services.GetRequiredService<IRootCredentialStore>();
+            var keycloak = await credentials.TryReadAsync("keycloak", default);
+            Assert.Equal("identity.example", keycloak!.Host);
+            Assert.Equal(443, keycloak.Port);
+            Assert.Equal(new KeycloakRootOptions("https", "/auth/", "master", "admin-cli"), keycloak.Keycloak);
+            var s3 = await credentials.TryReadAsync("s3", default);
+            Assert.Equal("storage.example", s3!.Host);
+            Assert.Equal(9000, s3.Port);
+            Assert.Equal(new S3RootOptions("http", true, "us-east-1"), s3.S3);
             Assert.Contains("Your Forge is ready",await host.Client.GetStringAsync("/setup/complete"));
             Assert.Equal(HttpStatusCode.Conflict,(await host.Client.PostAsync("/setup/infrastructure/save",new FormUrlEncodedContent(save))).StatusCode);
             Assert.False(host.Sessions.IsActive(host.Session));

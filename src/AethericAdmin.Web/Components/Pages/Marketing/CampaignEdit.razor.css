@@ -1,0 +1,1 @@
+label { display: block; margin: 0.75rem 0; } label ::deep input, label ::deep textarea, label ::deep select { display: block; width: min(100%, 42rem); } label ::deep textarea { min-height: 5rem; } fieldset { border: 0; padding: 0; } button { margin-right: 0.5rem; }

@@ -1,0 +1,135 @@
+@page "/marketing/campaigns/{Id}"
+@inject NavigationManager Navigation
+@inject IServiceProvider Services
+@inject MarketingAvailability Availability
+<PageTitle>Manage marketing campaign</PageTitle>
+<h1>@(form.Revision == 0 ? "New marketing campaign" : form.Name)</h1>
+@if (!Availability.Enabled)
+{
+    <p>Marketing is not configured for this environment.</p>
+}
+else if (loading)
+{
+    <p>Loading campaign…</p>
+}
+else if (missing)
+{
+    <p>Campaign not found.</p><a href="/marketing/campaigns">Back to campaigns</a>
+}
+else
+{
+    @if (errors.Count > 0)
+    {
+        <div role="alert"><ul>@foreach (var error in errors) { <li>@error</li> }</ul></div>
+    }
+    @if (message is not null) { <p role="status">@message</p> }
+    <p>@(publication is null ? (ended ? "Ended. The page uses its normal content." : "Draft. No active publication.") : $"Active on {publication.WebsiteId}{publication.IntakePath}, from draft revision {publication.DraftRevision}.")</p>
+    <p>Saving a draft leaves live content unchanged. Save and publish updates the designated page.</p>
+    <EditForm Model="form" OnSubmit="SaveDraftAsync">
+        <fieldset disabled="@busy">
+            <label>Slug <InputText @bind-Value="form.Id" disabled="@(form.Revision > 0)" /></label>
+            <label>Name <InputText @bind-Value="form.Name" /></label>
+            <label>Website <InputSelect @bind-Value="form.WebsiteId"><option value="blackcircuit">Black Circuit</option><option value="aetheric-forge">Aetheric Forge</option></InputSelect></label>
+            <label>Intake page <InputText @bind-Value="form.IntakePath" /></label>
+            <p>Supported pages: Black Circuit /portfolio and Aetheric Forge /projects.</p>
+            <label>Audience <InputText @bind-Value="form.Audience" /></label>
+            <label>Objective <InputText @bind-Value="form.Objective" /></label>
+            <label>Private notes <InputTextArea @bind-Value="form.Notes" /></label>
+            <h2>Website content</h2>
+            <label>Headline <InputText @bind-Value="form.Headline" /></label>
+            <label>Summary <InputTextArea @bind-Value="form.Summary" /></label>
+            <label>Body <InputTextArea @bind-Value="form.Body" /></label>
+            <label>Call-to-action label <InputText @bind-Value="form.ActionLabel" /></label>
+            <label>Call-to-action URL <InputText @bind-Value="form.ActionUrl" /></label>
+            <label>Hero image URL <InputText @bind-Value="form.ImageUrl" /></label>
+            <label>Hero image alternative text <InputText @bind-Value="form.ImageAlt" /></label>
+            <label>Featured offering slugs, comma separated <InputText @bind-Value="form.OfferingIds" /></label>
+            <h2>SEO and social previews</h2>
+            <label>SEO title <InputText @bind-Value="form.SeoTitle" /></label>
+            <label>SEO description <InputTextArea @bind-Value="form.SeoDescription" /></label>
+            <label>Social title <InputText @bind-Value="form.SocialTitle" /></label>
+            <label>Social description <InputTextArea @bind-Value="form.SocialDescription" /></label>
+            <label>Social image URL <InputText @bind-Value="form.SocialImageUrl" /></label>
+            <label>Social image alternative text <InputText @bind-Value="form.SocialImageAlt" /></label>
+            <label>Structured data JSON <InputTextArea @bind-Value="form.StructuredData" /></label>
+            <button type="submit">Save draft</button>
+            <button type="button" @onclick="PublishAsync">@(publication is null ? "Save and publish" : "Save and republish")</button>
+            @if (publication is not null)
+            {
+                <button type="button" @onclick="() => confirmEnd = true">End campaign</button>
+            }
+        </fieldset>
+    </EditForm>
+    @if (confirmEnd && publication is not null)
+    {
+        <p>End this publication and restore the page's normal content?</p>
+        <button disabled="@busy" @onclick="EndAsync">Confirm end</button>
+        <button disabled="@busy" @onclick="() => confirmEnd = false">Cancel</button>
+    }
+    <a href="/marketing/campaigns">Back to campaigns</a>
+}
+@code {
+    [Parameter] public string Id { get; set; } = "";
+    private MarketingCampaignForm form = new();
+    private CampaignPublication? publication;
+    private CampaignManagementService Management => Services.GetRequiredService<CampaignManagementService>();
+    private bool loading = true, missing, busy, confirmEnd, ended;
+    private List<string> errors = [];
+    private string? message;
+    protected override async Task OnParametersSetAsync()
+    {
+        if (!Availability.Enabled) { loading = false; return; }
+        loading = true; missing = false; errors = []; message = null; confirmEnd = false; publication = null; ended = false;
+        try
+        {
+            if (Id == "new") form = new();
+            else
+            {
+                var draft = await Management.GetAsync(Id);
+                missing = draft is null;
+                if (draft is not null)
+                {
+                    form = MarketingCampaignForm.FromDraft(draft);
+                    var latest = await Management.GetPublicationAsync(Id);
+                    publication = latest?.IsActive == true ? latest : null;
+                    ended = latest?.EndedAt is not null;
+                }
+            }
+        }
+        catch (UnauthorizedAccessException) { missing = true; }
+        finally { loading = false; }
+    }
+    private Task SaveDraftAsync() => PerformAsync(async () =>
+    {
+        var saved = await Management.SaveAsync(form.ToDraft()); form.Revision = saved.Revision;
+        message = "Draft saved. Live content is unchanged.";
+        if (Id == "new") Navigation.NavigateTo($"/marketing/campaigns/{saved.Id}");
+    });
+    private Task PublishAsync() => PerformAsync(async () =>
+    {
+        var saved = await Management.SaveAsync(form.ToDraft()); form.Revision = saved.Revision;
+        publication = await Management.PublishAsync(saved.Id, saved.Revision, publication?.Version); ended = false;
+        message = "Campaign published. The website refreshes its content within 30 seconds.";
+        if (Id == "new") Navigation.NavigateTo($"/marketing/campaigns/{saved.Id}");
+    });
+    private Task EndAsync() => PerformAsync(async () =>
+    {
+        await Management.EndAsync(publication!); publication = null; confirmEnd = false; ended = true;
+        message = "Campaign ended. The website restores its normal content within 30 seconds.";
+    });
+    private async Task PerformAsync(Func<Task> action)
+    {
+        if (busy) return;
+        busy = true; errors = []; message = null;
+        try
+        {
+            if (form.Id == "new") throw new CampaignValidationException(["Choose a slug other than new."]);
+            await action();
+        }
+        catch (CampaignValidationException exception) { errors = exception.Errors.ToList(); }
+        catch (CampaignConflictException exception) { errors = [exception.Message]; }
+        catch (CampaignPublicationConflictException exception) { errors = [exception.Message]; }
+        catch (UnauthorizedAccessException) { errors = ["Administrator sign-in is required."]; }
+        finally { busy = false; }
+    }
+}

@@ -33,7 +33,12 @@ public sealed class BootstrapConfigurationTests
                 Assert.Equal(RegistryBootstrapPhase.Completed, (await services.GetRequiredService<IRegistryBootstrapStore>().ReadAsync(default)).Phase);
             var mismatch = Builder(directory);
             mismatch.Configuration["BootstrapConnection:ClientId"] = "different-client";
-            await Assert.ThrowsAsync<InvalidOperationException>(() => mismatch.AddAdminBootstrapAsync());
+            await mismatch.AddAdminBootstrapAsync();
+            await using (var services = mismatch.Services.BuildServiceProvider())
+                Assert.Equal("provisioner", services.GetRequiredService<Aetheric.Provisioning.Components.BootstrapConnectionConfiguration>().ClientId);
+            var wrongRealm = Builder(directory);
+            wrongRealm.Configuration["BootstrapConnection:Realm"] = "different-realm";
+            await Assert.ThrowsAsync<InvalidOperationException>(() => wrongRealm.AddAdminBootstrapAsync());
         }
         finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
     }

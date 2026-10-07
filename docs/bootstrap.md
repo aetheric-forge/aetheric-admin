@@ -2,7 +2,13 @@
 
 Admin consumes the shared `aetheric-web-components` repository through the pinned `web-components` submodule. The Keycloak connection, administrator creation/existing-account selection, administrator sign-in, infrastructure tests, and encrypted credential save are the same library workflow used by the provisioner.
 
-Bootstrap is an explicit deployment mode (`Bootstrap:Enabled=true`). It does not register the operational Redis/Mongo clients, Campus services, maintenance scheduler, or normal admin routes. Normal mode retains its existing authentication and institution-specific configuration. There is no automatic switch to the dashboard or subscriber integration in this change.
+In production, admin checks the five root credentials needed for University provisioning before registering operational services. If any are missing, it automatically starts the existing bootstrap workflow and redirects `/university` to `/setup`. `Bootstrap:AutoSetup=false` disables that automatic behavior; development defaults to disabled.
+
+Set `BootstrapConnection:PublicOrigin` to the deployment's public HTTPS origin (or `Admin:PublicOrigin` as a fallback). Setup authority, realm, client ID and administrator role can be set through `BootstrapConnection`; otherwise existing bootstrap state is authoritative, with normal Keycloak settings used for a new deployment. Use a provisioner client with the realm administration permissions required by the existing workflow, and register its `/setup/signin-oidc` callback.
+
+New automatic setup initializes deployment-bound registry state once, preserves existing state and encrypted credentials, and requires administrator verification and connection tests. When legacy credentials exist without infrastructure progress, they are offered for retesting under the selected verified administrator. Completed or corrupt state is never reset. After saving all tested connections, the completion page reopens the host in normal mode and sends the browser to `/university`; no deployment-mode toggle is required. Normal admin authentication still applies.
+
+An explicit deployment mode remains available (`Bootstrap:Enabled=true`). It does not register the operational Redis/Mongo clients, Campus services, maintenance scheduler, or normal admin routes. Normal mode retains its existing authentication and institution-specific configuration. Explicit bootstrap mode remains active until the deployment configuration is changed.
 
 ## Start locally
 
@@ -69,3 +75,32 @@ Run `dotnet test --configuration Release` with the existing isolated Redis fixtu
 CI also publishes admin and runs `scripts/smoke-bootstrap.py` against the published output, verifying first startup, static assets, and route isolation without live Keycloak/Redis/Mongo dependencies.
 
 The web-components repository is public. Normal recursive submodule checkout and the default GitHub Actions token are sufficient; no cross-repository secret is required.
+
+## Admin login credentials after bootstrap
+
+Admin opts into saving the provisioner OIDC client secret in the existing encrypted root
+credential store under `provisioner-client`, after protocol validation and sign-in as the
+selected administrator. The record binds the secret to its issuer and client ID. Normal
+mode loads it only for that same client and uses the registered `/setup/signin-oidc` callback.
+Keep the root-credentials and root-key volumes together across mode changes and restarts.
+
+For deployments completed before this change, restart in bootstrap mode and open `/setup`.
+Reconnect the existing provisioner client and sign in as the selected administrator. Only
+missing-secret recovery is permitted after completion; infrastructure completion and saved
+credentials remain intact. Then restart normal mode with `ASPNETCORE_ENVIRONMENT=Production`.
+Do not initialize bootstrap again. Without a matching secret, normal mode serves an HTTP 503
+setup-required page instead of making an OIDC request that fails. An explicit
+`Keycloak:ClientSecret` still takes precedence.
+
+### RabbitMQ access before campus submission
+
+On `/university`, use **RabbitMQ access** before **Submit to Operations**:
+
+- **Operations broker (AMQP)**: enter the messaging host, port (5672, or 5671 with TLS), virtual host, username and password. Match the broker and virtual host used by the Operations worker. Save the Operations connection.
+- **Campus provisioning (management API)**: enter the HTTP/HTTPS management base URL (typically port 15672), administrator username and password. Save the provisioning credentials. Operations uses this account to create campus virtual hosts and users.
+
+These connections may use different hosts and accounts. Both are encrypted in the existing root-credential volume, using its retained encryption key. AMQP settings use the separate `rabbitmq-amqp` entry and take precedence over the app's RabbitMQ configuration; management credentials continue to use `rabbitmq`. Passwords are not reloaded into inputs or included in draft downloads. Enter a password when saving a replacement connection.
+
+The sender reloads saved AMQP settings without an app restart and restores result subscriptions after connection changes. Missing or unavailable RabbitMQ connections leave the setup UI accessible; subscription attempts retry in the background. Saving credentials does not test access or create resources. Submission still requires the other provisioning credentials (MongoDB, Keycloak, S3 and Redis).
+
+Automatic startup and routing are smoke-tested by `scripts/smoke-auto-setup.py` against the published app, including state preservation across restarts.

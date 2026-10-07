@@ -128,6 +128,7 @@ public sealed class UniversityDraftTests
         services.AddSingleton<IRootCredentialStore, NoCredentials>();
         services.AddSingleton<IPostService, UnusedPostService>();
         services.AddSingleton<UniversityBootstrapSubmission>();
+        services.AddSingleton<RabbitMqConnections>();
         services.AddSingleton<BootstrapResultStore>();
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
@@ -141,6 +142,11 @@ public sealed class UniversityDraftTests
         Assert.Contains("Review envelope", html);
         Assert.DoesNotContain("Download draft envelope", html);
         Assert.Contains("Draft workspace", html);
+        Assert.Contains("Operations broker (AMQP)", html);
+        Assert.Contains("Campus provisioning (management API)", html);
+        Assert.Contains("Save Operations connection", html);
+        Assert.Contains("Save provisioning credentials", html);
+        Assert.Contains("type=\"password\"", html);
         Assert.DoesNotContain("Submit to Operations", html); // only appears once a review exists
     }
 
@@ -170,6 +176,7 @@ public sealed class UniversityDraftTests
         services.AddSingleton<IRootCredentialStore, NoCredentials>();
         services.AddSingleton<IPostService, UnusedPostService>();
         services.AddSingleton<UniversityBootstrapSubmission>();
+        services.AddSingleton<RabbitMqConnections>();
         services.AddSingleton<BootstrapResultStore>();
         await using var provider = services.BuildServiceProvider();
         await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
@@ -196,7 +203,7 @@ public sealed class UniversityDraftTests
         public IComponent CreateInstance(Type componentType)
         {
             var component = (IComponent)Activator.CreateInstance(componentType)!;
-            if (component is EditForm form) Form = form;
+            if (component is EditForm form && Form is null) Form = form;
             return component;
         }
     }
@@ -206,7 +213,7 @@ public sealed class UniversityDraftTests
     private sealed class NoCredentials : IRootCredentialStore
     {
         public Task SetAsync(string system, RootCredential credential, CancellationToken ct) => throw new NotSupportedException();
-        public Task<RootCredential?> TryReadAsync(string system, CancellationToken ct) => throw new NotSupportedException();
+        public Task<RootCredential?> TryReadAsync(string system, CancellationToken ct) => Task.FromResult<RootCredential?>(null);
     }
     private sealed class UnusedPostService : IPostService
     {

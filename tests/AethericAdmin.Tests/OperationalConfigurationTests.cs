@@ -76,7 +76,19 @@ public sealed class OperationalConfigurationTests
         var builder = Builder(state, credentials, key);
 
         var ex = await Assert.ThrowsAsync<InvalidOperationException>(() => builder.ApplyDerivedDefaultsAsync());
-        Assert.Contains("'rabbitmq'", ex.Message);
+        Assert.Contains("'redis'", ex.Message);
+    }
+
+    [Fact]
+    public async Task Missing_rabbitmq_allows_loading_the_credential_entry_page()
+    {
+        var (state, credentials, key) = Directories();
+        await CompleteBootstrapAsync(state);
+        await SetCredentialAsync(credentials, key, "redis", new("redis.internal", 6379, null, "secret"));
+        await SetCredentialAsync(credentials, key, "mongo", new("mongo.internal", 27017, "root", "secret") { Mongo = new() });
+        var builder = Builder(state, credentials, key);
+        await builder.ApplyDerivedDefaultsAsync();
+        Assert.True(string.IsNullOrWhiteSpace(builder.Configuration["RabbitMq:Host"]));
     }
 
     [Fact]
@@ -98,7 +110,7 @@ public sealed class OperationalConfigurationTests
         Assert.Equal("rabbitmq.internal", configuration["RabbitMq:Host"]);
         Assert.Equal("root", configuration["RabbitMq:Username"]);
         Assert.Equal("rabbit-secret", configuration["RabbitMq:Password"]);
-        Assert.Equal("True", configuration["RabbitMq:Ssl"]);
+        Assert.Equal("false", configuration["RabbitMq:Ssl"]);
         Assert.Equal("/", configuration["RabbitMq:VirtualHost"]);
 
         Assert.Equal("redis.internal", configuration["Redis:Host"]);
@@ -128,5 +140,21 @@ public sealed class OperationalConfigurationTests
         Assert.Equal("already-configured.example", builder.Configuration["RabbitMq:Host"]);
         // Everything else still derives normally.
         Assert.Equal("redis.internal", builder.Configuration["Redis:Host"]);
+    }
+
+    [Theory]
+    [InlineData("true")]
+    [InlineData("false")]
+    public async Task Explicit_amqp_transport_survives_credential_derivation(string ssl)
+    {
+        var (state, credentials, key) = Directories();
+        await CompleteBootstrapAsync(state);
+        await SetCredentialAsync(credentials, key, "rabbitmq", new("rabbitmq.internal", 443, "root", "rabbit-secret") { RabbitMq = new("https", "/") });
+        await SetCredentialAsync(credentials, key, "redis", new("redis.internal", 6379, null, "redis-secret"));
+        await SetCredentialAsync(credentials, key, "mongo", new("mongo.internal", 27017, "root", "mongo-secret") { Mongo = new("admin", true) });
+        var builder = Builder(state, credentials, key, ("RabbitMq:Ssl", ssl));
+        await builder.ApplyDerivedDefaultsAsync();
+        Assert.Equal(ssl, builder.Configuration["RabbitMq:Ssl"]);
+        Assert.Equal("rabbitmq.internal", builder.Configuration["RabbitMq:Host"]);
     }
 }

@@ -15,7 +15,7 @@ namespace AethericAdmin.Web.Provisioning;
 /// </summary>
 public sealed class UniversityBootstrapSubmission(IRootCredentialStore credentialStore, IPostService postService)
 {
-    private static readonly string[] RequiredSystems = ["rabbitmq", "mongo", "keycloak", "s3", "redis"];
+    private static IReadOnlyList<string> RequiredSystems => AethericAdmin.Web.Bootstrap.AdminSetupReadiness.RequiredSystems;
 
     public sealed class MissingCredentialException(string system)
         : Exception($"No root credential is stored for '{system}'. Add it before submitting a University bootstrap.");

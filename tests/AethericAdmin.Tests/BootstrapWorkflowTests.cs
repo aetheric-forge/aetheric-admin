@@ -34,6 +34,31 @@ namespace AethericAdmin.Tests;
 public sealed class BootstrapWorkflowTests
 {
     [Fact]
+    public async Task Automatic_setup_redirects_university_and_waits_for_all_credentials_before_handoff()
+    {
+        await using var host = await Host.Start(automatic: true);
+        Assert.Equal("/setup", (await host.Client.GetAsync("/university")).Headers.Location!.ToString());
+        Assert.Contains("/setup/handoff.js", await host.Client.GetStringAsync("/setup"));
+        var incomplete = await host.Client.GetStringAsync("/setup/readiness");
+        Assert.Contains("\"restarting\":false", incomplete);
+        Assert.False(host.App.Lifetime.ApplicationStopping.IsCancellationRequested);
+        await host.Store.SaveAsync(new(host.Configuration.Settings, RegistryBootstrapPhase.Completed, "selected-subject"), default);
+        var infrastructure = host.App.Services.GetRequiredService<IInfrastructureStateStore>();
+        await infrastructure.SaveAsync(new(host.Configuration.Settings, "selected-subject", true, DateTimeOffset.UtcNow), default);
+        var credentials = host.App.Services.GetRequiredService<IRootCredentialStore>();
+        foreach (var system in AdminSetupReadiness.RequiredSystems.Where(x => x != "mongo"))
+            await credentials.SetAsync(system, new("service.example", 1234, "admin", "secret"), default);
+        Assert.Contains("\"restarting\":false", await host.Client.GetStringAsync("/setup/readiness"));
+        await credentials.SetAsync("mongo", new("mongo.example", 27017, "admin", "secret") { Mongo = new() }, default);
+        var stopped = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = host.App.Lifetime.ApplicationStopping.Register(() => stopped.TrySetResult());
+        Assert.Contains("\"restarting\":true", await host.Client.GetStringAsync("/setup/readiness"));
+        await stopped.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        Assert.Equal("true", host.App.Configuration["Bootstrap:HandoffRequested"]);
+        Assert.True(host.App.Lifetime.ApplicationStopping.IsCancellationRequested);
+    }
+
+    [Fact]
     public async Task Verified_connection_opens_account_form_without_human_oidc_login()
     {
         await using var host = await Host.Start();
@@ -101,8 +126,13 @@ public sealed class BootstrapWorkflowTests
         var callback = await host.Client.GetAsync("/setup/signin-oidc?code=test-code&state=" + Uri.EscapeDataString(query["state"].ToString()));
         Assert.Equal(HttpStatusCode.Redirect, callback.StatusCode);
         Assert.True(expected == (await host.Store.ReadAsync(default)).Phase, host.Tokens.Failure ?? "Completion rejected after validation");
+        var savedClient = await host.App.Services.GetRequiredService<IRootCredentialStore>()
+            .TryReadAsync("provisioner-client", default);
         if (expected == RegistryBootstrapPhase.Completed)
         {
+            Assert.Equal("client-secret", savedClient!.Password);
+            Assert.Equal(host.Configuration.Issuer, savedClient.Host);
+            Assert.Equal(host.Configuration.ClientId, savedClient.Username);
             Assert.Equal("/setup/infrastructure", callback.Headers.Location!.ToString());
             Assert.Contains("Redis", await host.Client.GetStringAsync("/setup/infrastructure"));
             var infrastructurePage = await host.Client.GetStringAsync("/setup/infrastructure");
@@ -153,7 +183,30 @@ public sealed class BootstrapWorkflowTests
             Assert.Equal("/setup/connection-error?reason=state", closed.Headers.Location!.ToString());
             Assert.Equal(HttpStatusCode.Redirect, (await host.Client.GetAsync("/setup/administrator")).StatusCode);
         }
-        else Assert.Equal("/setup/signin-error", callback.Headers.Location!.ToString());
+        else
+        {
+            Assert.Null(savedClient);
+            Assert.Equal("/setup/signin-error", callback.Headers.Location!.ToString());
+        }
+    }
+
+    [Fact]
+    public async Task Completed_deployment_recovers_missing_client_secret_without_reopening_infrastructure()
+    {
+        await using var host = await Host.Start();
+        await host.Store.SaveAsync(new(host.Configuration.Settings, RegistryBootstrapPhase.Completed, "selected-subject"), default);
+        var infrastructure = host.App.Services.GetRequiredService<IInfrastructureStateStore>();
+        var completed = new InfrastructureState(host.Configuration.Settings, "selected-subject", true, DateTimeOffset.UtcNow);
+        await infrastructure.SaveAsync(completed, default);
+        Assert.Equal("/setup/resume", (await host.Begin(await host.Ticket())).Headers.Location!.ToString());
+        var challenge = await host.Client.GetAsync("/test/challenge");
+        var query = QueryHelpers.ParseQuery(challenge.Headers.Location!.Query);
+        host.Tokens.Nonce = query["nonce"].ToString();
+        var callback = await host.Client.GetAsync("/setup/signin-oidc?code=test-code&state=" + Uri.EscapeDataString(query["state"].ToString()));
+        Assert.Equal("/setup/complete", callback.Headers.Location!.ToString());
+        Assert.Equal(completed, await infrastructure.ReadAsync(default));
+        Assert.Equal("client-secret", (await host.App.Services.GetRequiredService<IRootCredentialStore>().TryReadAsync("provisioner-client", default))!.Password);
+        Assert.Equal("/setup/connection-error?reason=state", (await host.Begin(await host.Ticket())).Headers.Location!.ToString());
     }
 
     [Fact]
@@ -245,7 +298,7 @@ public sealed class BootstrapWorkflowTests
         public TokenHandler Tokens = new();
         public ExistingAccounts? Accounts;
         public string? Session;
-        public static async Task<Host> Start(bool useDefaultOrigin = false, bool existingAccounts = false)
+        public static async Task<Host> Start(bool useDefaultOrigin = false, bool existingAccounts = false, bool automatic = false)
         {
             var host = new Host();
             if (useDefaultOrigin) host.Configuration = new BootstrapConnectionConfiguration
@@ -269,6 +322,11 @@ public sealed class BootstrapWorkflowTests
             });
             builder.Services.AddRazorComponents().AddInteractiveServerComponents();
             var signIn = await builder.AddAdminBootstrapAsync();
+            if (automatic)
+            {
+                builder.Configuration["Bootstrap:Automatic"] = "true";
+                builder.Services.AddLegacyInfrastructureResume();
+            }
             builder.Services.RemoveAll<IRootConnectionValidator>();
             builder.Services.AddSingleton<IRootConnectionValidator, PassingValidator>();
             if (existingAccounts)
@@ -294,6 +352,7 @@ public sealed class BootstrapWorkflowTests
             host.App = builder.Build();
             host.App.UseAuthentication(); host.App.UseAuthorization(); host.App.UseAntiforgery();
             host.App.MapAdminBootstrap(signIn);
+            if (automatic) host.App.MapAutomaticSetup();
             // Test-only fixtures: never exposed by the production host.
             host.App.MapGet("/test/ticket", (HttpContext context, IAntiforgery antiforgery, SetupSessions sessions) =>
                 new TicketData(sessions.CreateTicket("client-secret"), antiforgery.GetAndStoreTokens(context).RequestToken!));

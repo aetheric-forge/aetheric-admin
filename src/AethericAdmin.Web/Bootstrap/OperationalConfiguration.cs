@@ -68,15 +68,25 @@ public static class OperationalConfiguration
 
         if (string.IsNullOrWhiteSpace(configuration["RabbitMq:Host"]))
         {
-            var credential = await RequireCredentialAsync("rabbitmq");
-            derived["RabbitMq:Host"] = credential.Host;
-            derived["RabbitMq:Username"] = credential.Username;
-            derived["RabbitMq:Password"] = credential.Password;
-            derived["RabbitMq:Ssl"] = (credential.RabbitMq?.Scheme == "https").ToString();
-            // The stored credential's own Port is the management API port; AMQP uses the
-            // standard 5672/5671 default BuildRabbitMqUrl already falls back to when Port is
-            // absent - leave it unset rather than duplicating that port-selection logic here.
-            derived["RabbitMq:VirtualHost"] = "/";
+            credentialStore ??= new ManagedRootCredentialStore(
+                configuration["RootCredentials:Directory"] ?? "data/root-credentials",
+                configuration["RootCredentials:KeyDirectory"] ?? "data/root-key");
+            var credential = await credentialStore.TryReadAsync("rabbitmq", ct);
+            // RabbitMQ can be entered on the University page before the first request.
+            if (credential is not null)
+            {
+                derived["RabbitMq:Host"] = credential.Host;
+                derived["RabbitMq:Username"] = credential.Username;
+                derived["RabbitMq:Password"] = credential.Password;
+                // Management HTTPS and AMQP transport are independent. Preserve an explicit
+                // messaging setting; otherwise use plain AMQP until AMQPS is configured.
+                if (string.IsNullOrWhiteSpace(configuration["RabbitMq:Ssl"]))
+                    derived["RabbitMq:Ssl"] = "false";
+                // The stored credential's own Port is the management API port; AMQP uses the
+                // standard 5672/5671 default BuildRabbitMqUrl already falls back to when Port is
+                // absent - leave it unset rather than duplicating that port-selection logic here.
+                derived["RabbitMq:VirtualHost"] = "/";
+            }
         }
 
         if (string.IsNullOrWhiteSpace(configuration["Redis:Host"]))

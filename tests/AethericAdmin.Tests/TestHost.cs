@@ -1,4 +1,5 @@
 using AethericAdmin.Web.Hosting;
+using Aetheric.Provisioning.Engine;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -30,7 +31,13 @@ internal static class TestHost
         var configuration = Configuration(prefix);
         services.AddSingleton(configuration);
         services.AddAdminRedisPersistence(configuration);
+        services.AddSingleton<IRootCredentialStore, EmptyRootCredentials>();
         services.AddForgeCampus();
         return services.BuildServiceProvider();
+    }
+    private sealed class EmptyRootCredentials : IRootCredentialStore
+    {
+        public Task<RootCredential?> TryReadAsync(string system, CancellationToken ct) => Task.FromResult<RootCredential?>(null);
+        public Task SetAsync(string system, RootCredential credential, CancellationToken ct) => throw new NotSupportedException();
     }
 }

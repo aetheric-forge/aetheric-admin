@@ -13,6 +13,8 @@ public static class AdminBootstrapHosting
     public static async Task<AdministratorSignInConfiguration> AddAdminBootstrapAsync(this WebApplicationBuilder builder, bool initialize = false)
     {
         var connection = builder.Configuration.GetSection("BootstrapConnection").Get<BootstrapConnectionConfiguration>() ?? new();
+        connection.PersistClientSecret = true;
+        connection.AllowClientSelection = true;
         var signIn = new AdministratorSignInConfiguration(connection, builder.Environment.IsDevelopment());
         if (!connection.IsConfigured || !signIn.Enabled)
             throw new InvalidOperationException("Bootstrap mode requires BootstrapConnection:Authority, Realm, ClientId and a valid PublicOrigin.");
@@ -27,6 +29,7 @@ public static class AdminBootstrapHosting
             try { state = await store.ReadAsync(default); }
             catch (FileNotFoundException)
             { throw new InvalidOperationException("Bootstrap state is missing. Initialize this deployment once with --initialize-bootstrap, or restore its existing state."); }
+            connection.ClientId = state.Settings.ClientId;
             if (state.Settings != connection.Settings)
                 throw new InvalidOperationException("Bootstrap deployment settings changed. Restore the matching configuration and state.");
         }

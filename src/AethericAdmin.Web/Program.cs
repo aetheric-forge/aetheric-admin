@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
 using Forge.Primitives.MongoDb;
+using System.Net;
 
 // MongoDB.Driver 3.x removed its old implicit Guid-serialization default - without this, every
 // write of a Guid Id (JobDefinition, SshCredential) throws "GuidSerializer cannot serialize a Guid
@@ -20,6 +21,8 @@ using Forge.Primitives.MongoDb;
 MongoBsonSetup.EnsureGuidRepresentationRegistered();
 
 var initializeBootstrap = args.Contains("--initialize-bootstrap", StringComparer.Ordinal);
+while (true)
+{
 var builder = WebApplication.CreateBuilder(args.Where(x => x != "--initialize-bootstrap").ToArray());
 
 builder.Services.AddRazorComponents()
@@ -27,16 +30,28 @@ builder.Services.AddRazorComponents()
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddScoped<UniversityDraftSession>();
 
-// Bootstrap is an explicit deployment mode. It never starts operational Redis/Mongo services.
-if (initializeBootstrap || builder.Configuration.GetValue<bool>("Bootstrap:Enabled"))
+var explicitBootstrap = initializeBootstrap || builder.Configuration.GetValue<bool>("Bootstrap:Enabled");
+var credentialStore = new ManagedRootCredentialStore(
+    builder.Configuration["RootCredentials:Directory"] ?? "data/root-credentials",
+    builder.Configuration["RootCredentials:KeyDirectory"] ?? "data/root-key");
+var automaticBootstrap = !explicitBootstrap
+    && builder.Configuration.GetValue("Bootstrap:AutoSetup", !builder.Environment.IsDevelopment())
+    && !await AdminSetupReadiness.HasRootCredentialsAsync(credentialStore);
+
+// Incomplete deployments expose only the existing verified setup workflow, without
+// starting the operational Redis/Mongo services whose credentials it collects.
+if (explicitBootstrap || automaticBootstrap)
 {
-    var signIn = await builder.AddAdminBootstrapAsync(initializeBootstrap);
+    var initialize = initializeBootstrap;
+    if (automaticBootstrap) initialize = await AutomaticAdminSetup.PrepareAsync(builder);
+    var signIn = await builder.AddAdminBootstrapAsync(initialize);
+    if (automaticBootstrap) builder.Services.AddLegacyInfrastructureResume();
     if (initializeBootstrap)
     {
         Console.WriteLine("Initialized admin bootstrap state. Existing state is never replaced.");
         return;
     }
-    var bootstrapApp = builder.Build();
+    await using var bootstrapApp = builder.Build();
     bootstrapApp.UseForwardedHeaders();
     if (!bootstrapApp.Environment.IsDevelopment())
     {
@@ -49,7 +64,9 @@ if (initializeBootstrap || builder.Configuration.GetValue<bool>("Bootstrap:Enabl
     bootstrapApp.UseAuthorization();
     bootstrapApp.UseAntiforgery();
     bootstrapApp.MapAdminBootstrap(signIn);
+    if (automaticBootstrap) bootstrapApp.MapAutomaticSetup();
     await bootstrapApp.RunAsync();
+    if (automaticBootstrap && builder.Configuration.GetValue<bool>("Bootstrap:HandoffRequested")) continue;
     return;
 }
 
@@ -63,6 +80,25 @@ var requireAuth = !builder.Environment.IsDevelopment();
 // OperationalConfiguration's own doc comment for why this is safe to derive rather than requiring
 // it to be hand-typed a second time.
 await builder.ApplyDerivedDefaultsAsync();
+
+if (requireAuth && !await OperationalClientSecret.ApplyAsync(builder.Configuration,
+    new ManagedRootCredentialStore(
+        builder.Configuration["RootCredentials:Directory"] ?? "data/root-credentials",
+        builder.Configuration["RootCredentials:KeyDirectory"] ?? "data/root-key")))
+{
+    // Keep a usable diagnostic page available without exposing operational routes.
+    var setupRequired = builder.Build();
+    setupRequired.MapGet("/{**path}", () => Results.Content(
+        "<!doctype html><html><head><title>Admin login setup required</title></head><body>" +
+        "<h1>Admin login setup required</h1><p>The saved provisioner client secret is missing " +
+        "or does not match this deployment.</p><p>Restart in bootstrap mode, open /setup, " +
+        "and reconnect the provisioner client, then sign in as the existing administrator. " +
+        "Your infrastructure credentials are retained. Restart normal mode afterwards.</p></body></html>",
+        "text/html", statusCode: StatusCodes.Status503ServiceUnavailable));
+    await setupRequired.RunAsync();
+    return;
+}
+
 
 if (requireAuth)
 {
@@ -84,8 +120,30 @@ if (requireAuth)
                 : $"{authority}/realms/{builder.Configuration["Keycloak:Realm"]}";
             options.ClientId = builder.Configuration["Keycloak:ClientId"];
             options.ClientSecret = builder.Configuration["Keycloak:ClientSecret"];
+            options.CallbackPath = builder.Configuration["Keycloak:CallbackPath"] ?? "/signin-oidc";
             options.ResponseType = OpenIdConnectResponseType.Code;
             options.UsePkce = true;
+            options.ResponseMode = OpenIdConnectResponseMode.Query;
+            // Safari over the operator's SSH loopback tunnel must return correlation/nonce
+            // cookies on the top-level OIDC callback. Lax works with the query response mode;
+            // SameAsRequest permits localhost HTTP while retaining Secure cookies under HTTPS.
+            options.CorrelationCookie.SameSite = SameSiteMode.Lax;
+            options.NonceCookie.SameSite = SameSiteMode.Lax;
+            options.CorrelationCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.NonceCookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
+            options.Events.OnRedirectToIdentityProvider = context =>
+            {
+                if (!context.Request.IsHttps
+                    && !(context.Request.Host.Host == "localhost"
+                        || IPAddress.TryParse(context.Request.Host.Host, out var address) && IPAddress.IsLoopback(address)))
+                {
+                    context.Response.StatusCode = StatusCodes.Status400BadRequest;
+                    context.Response.ContentType = "text/plain";
+                    context.HandleResponse();
+                    return context.Response.WriteAsync("Admin sign-in requires HTTPS except on loopback.");
+                }
+                return Task.CompletedTask;
+            };
             options.SaveTokens = false;
             options.GetClaimsFromUserInfoEndpoint = true;
         });
@@ -132,7 +190,7 @@ builder.Services.AddSingleton<IMaintenanceWorker, StaleMembershipApplicationsWor
 
 builder.Services.AddHostedService<MaintenanceDispatchService>();
 
-var app = builder.Build();
+await using var app = builder.Build();
 
 if (!app.Environment.IsDevelopment())
 {
@@ -154,5 +212,10 @@ app.MapStaticAssets();
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();
 app.MapCampusDeploymentEndpoints();
+app.MapGet("/setup/readiness", () => Results.Json(new { ready = true })).AllowAnonymous();
+app.MapGet("/setup", () => Results.Redirect("/university"));
+app.MapGet("/setup/complete", () => Results.Redirect("/university"));
 
 app.Run();
+return;
+}

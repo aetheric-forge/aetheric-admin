@@ -33,11 +33,8 @@ namespace AethericAdmin.Web.Hosting;
 /// </summary>
 public static class ForgeCampusExtensions
 {
-    // Admin has no scoped RabbitMQ credentials of its own - the provisioner is what creates
-    // scoped resources, and Post Office is how admin reaches it in the first place. This uses
-    // the platform-admin root RabbitMQ user directly (configured here, not read back out of
-    // IRootCredentialStore - that store's RootCredential shape targets the HTTP management API,
-    // not the AMQP port/vhost this connection needs).
+    // Configuration supplies the fallback connection. Operator-entered AMQP settings are
+    // encrypted separately from HTTP management credentials and read by the provider.
     internal static string BuildRabbitMqUrl(IConfiguration configuration)
     {
         var useSsl = configuration.GetValue("RabbitMq:Ssl", false);
@@ -61,6 +58,9 @@ public static class ForgeCampusExtensions
 
     public static IServiceCollection AddForgeCampus(this IServiceCollection services)
     {
+        services.AddSingleton<RabbitMqConnections>();
+        services.AddSingleton<ConfiguredRabbitMqPostProvider>();
+        services.AddHostedService(sp => sp.GetRequiredService<ConfiguredRabbitMqPostProvider>());
         services.AddInstitutionTemplate(builder =>
         {
             builder.WithDescriptor(
@@ -76,9 +76,7 @@ public static class ForgeCampusExtensions
                 .With<IArtificer, Artificer>()
                 .With<IWorkbenchContext, WorkbenchContext>()
                 .With<IWorkbench, Workbench>()
-                .With<IPostProvider>(sp => new RabbitMqPostProvider(
-                    ProvisioningPost.Domain,
-                    BuildRabbitMqUrl(sp.GetRequiredService<IConfiguration>())))
+                .With<IPostProvider>(sp => sp.GetRequiredService<ConfiguredRabbitMqPostProvider>())
                 .With<IPostService, PostService>()
                 .With<ITeam<IPostClerk>>(_ => new Team<IPostClerk>(Array.Empty<IPostClerk>()))
                 .With<IPostExchange, PostExchange>()

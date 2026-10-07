@@ -97,6 +97,8 @@
         </div>
     </EditForm>
 
+    <RabbitMqCredentials />
+
     @if (_review is not null)
     {
         <section class="envelope-review" aria-labelledby="review-heading" aria-live="polite">
@@ -211,9 +213,13 @@
             var submission = Services.GetRequiredService<UniversityBootstrapSubmission>();
             _submittedRequestId = await submission.SubmitAsync(_review, default);
         }
-        catch (Exception ex)
+        catch (UniversityBootstrapSubmission.MissingCredentialException ex)
         {
             _submitError = ex.Message;
+        }
+        catch (Exception)
+        {
+            _submitError = "Could not submit to Operations. Check the saved RabbitMQ broker connection and that the Operations worker is listening on its virtual host, then retry.";
         }
         finally
         {

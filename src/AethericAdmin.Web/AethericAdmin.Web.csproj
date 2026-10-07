@@ -52,4 +52,8 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="../../marketing/src/MarketingCampus.Application/MarketingCampus.Application.csproj" />
+    <ProjectReference Include="../../marketing/src/MarketingCampus.Providers.MongoDb/MarketingCampus.Providers.MongoDb.csproj" />
+  </ItemGroup>
 </Project>

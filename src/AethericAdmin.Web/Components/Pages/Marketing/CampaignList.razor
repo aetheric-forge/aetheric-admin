@@ -1,0 +1,49 @@
+@page "/marketing/campaigns"
+@inject IServiceProvider Services
+@inject MarketingAvailability Availability
+<PageTitle>Marketing campaigns</PageTitle>
+<h1>Marketing campaigns</h1>
+@if (!Availability.Enabled)
+{
+    <p>Marketing is not configured for this environment.</p>
+}
+else if (error is not null)
+{
+    <p role="alert">@error</p>
+}
+else if (drafts is null)
+{
+    <p>Loading campaigns…</p>
+}
+else
+{
+    <a href="/marketing/campaigns/new">New marketing campaign</a>
+    <table class="table">
+        <thead><tr><th>Name</th><th>Website</th><th>Intake page</th><th>Status</th><th>Revision</th><th></th></tr></thead>
+        <tbody>@foreach (var draft in drafts)
+        {
+            <tr><td>@draft.Name</td><td>@draft.WebsiteId</td><td>@draft.IntakePath</td><td>@statuses.GetValueOrDefault(draft.Id, "Draft")</td><td>@draft.Revision</td>
+                <td><a href="@($"/marketing/campaigns/{draft.Id}")">Manage</a></td></tr>
+        }</tbody>
+    </table>
+}
+@code {
+    private IReadOnlyList<CampaignDraft>? drafts;
+    private string? error;
+    private Dictionary<string,string> statuses = [];
+    protected override async Task OnInitializedAsync()
+    {
+        if (!Availability.Enabled) return;
+        try
+        {
+            var management = Services.GetRequiredService<CampaignManagementService>();
+            drafts = await management.GetAllAsync();
+            foreach (var draft in drafts)
+            {
+                var publication = await management.GetPublicationAsync(draft.Id);
+                statuses[draft.Id] = publication?.IsActive == true ? "Active" : publication?.EndedAt is not null ? "Ended" : "Draft";
+            }
+        }
+        catch (UnauthorizedAccessException) { error = "Administrator sign-in is required."; }
+    }
+}

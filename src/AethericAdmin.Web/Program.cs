@@ -1,3 +1,4 @@
+using AethericAdmin.Web.Marketing;
 using Aetheric.Provisioning.Engine;
 using Aetheric.Provisioning.Persistence;
 using AethericAdmin.Web.Components;
@@ -189,6 +190,8 @@ builder.Services.AddSingleton<IMembershipApplicationStore, MongoMembershipApplic
 builder.Services.AddSingleton<IMaintenanceWorker, StaleMembershipApplicationsWorker>();
 
 builder.Services.AddHostedService<MaintenanceDispatchService>();
+
+builder.Services.AddMarketingManagement(builder.Configuration);
 
 await using var app = builder.Build();
 

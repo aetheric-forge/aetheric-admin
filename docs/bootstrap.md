@@ -104,3 +104,9 @@ These connections may use different hosts and accounts. Both are encrypted in th
 The sender reloads saved AMQP settings without an app restart and restores result subscriptions after connection changes. Missing or unavailable RabbitMQ connections leave the setup UI accessible; subscription attempts retry in the background. Saving credentials does not test access or create resources. Submission still requires the other provisioning credentials (MongoDB, Keycloak, S3 and Redis).
 
 Automatic startup and routing are smoke-tested by `scripts/smoke-auto-setup.py` against the published app, including state preservation across restarts.
+
+## Initial provisioner client choice
+
+Before an administrator is selected, the client ID on `/setup` is editable. Enter an existing Keycloak client's ID and secret; the wizard verifies service-account permissions and Admin API access before saving a changed ID. Failed checks do not change the saved binding. A successful change invalidates previous setup sessions and tickets. Restarting setup uses the saved ID even if the deployment still suggests `provisioner`.
+
+After selecting or creating the administrator, the client ID is read-only and server validation rejects changes. This connection step does not create the initial Keycloak client.

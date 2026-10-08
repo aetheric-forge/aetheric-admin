@@ -72,7 +72,7 @@ public static class OperationalConfiguration
                 configuration["RootCredentials:Directory"] ?? "data/root-credentials",
                 configuration["RootCredentials:KeyDirectory"] ?? "data/root-key");
             var credential = await credentialStore.TryReadAsync("rabbitmq", ct);
-            // RabbitMQ can be entered on the University page before the first request.
+            // Reuse the management credentials saved during infrastructure setup.
             if (credential is not null)
             {
                 derived["RabbitMq:Host"] = credential.Host;

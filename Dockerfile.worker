@@ -1,0 +1,16 @@
+FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+COPY docker/certs/aetheric-forge-ca.crt /usr/local/share/ca-certificates/aetheric-forge-ca.crt
+RUN update-ca-certificates
+WORKDIR /src
+COPY . .
+RUN dotnet publish runtime/src/Tools/Aetheric.Provisioning.Worker/Aetheric.Provisioning.Worker.csproj \
+    -c Release -o /app/publish
+
+FROM mcr.microsoft.com/dotnet/runtime:10.0
+COPY docker/certs/aetheric-forge-ca.crt /usr/local/share/ca-certificates/aetheric-forge-ca.crt
+RUN update-ca-certificates
+WORKDIR /app
+COPY --from=build /app/publish .
+ENV Provisioning__DataDirectory=/data
+ENV Provisioning__SecretsKeyDirectory=/data/secrets-key
+ENTRYPOINT ["dotnet", "Aetheric.Provisioning.Worker.dll"]

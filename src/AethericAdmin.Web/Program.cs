@@ -1,5 +1,6 @@
 using AethericAdmin.Web.Marketing;
 using Aetheric.Provisioning.Engine;
+using Aetheric.Provisioning.Application;
 using Aetheric.Provisioning.Persistence;
 using AethericAdmin.Web.Components;
 using AethericAdmin.Web.Bootstrap;
@@ -81,6 +82,8 @@ var requireAuth = !builder.Environment.IsDevelopment();
 // OperationalConfiguration's own doc comment for why this is safe to derive rather than requiring
 // it to be hand-typed a second time.
 await builder.ApplyDerivedDefaultsAsync();
+builder.Services.AddSingleton<IRegistryBootstrapStore>(new FileRegistryBootstrapStore(
+    builder.Configuration["BootstrapConnection:StateDirectory"] ?? "data/bootstrap"));
 
 if (requireAuth && !await OperationalClientSecret.ApplyAsync(builder.Configuration,
     new ManagedRootCredentialStore(

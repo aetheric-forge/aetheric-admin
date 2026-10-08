@@ -1,5 +1,6 @@
 @implements IDisposable
 @using System.Text.Json
+@using Aetheric.Provisioning.Application
 @using AethericAdmin.Web.Provisioning
 @using Microsoft.Extensions.DependencyInjection
 @inject UniversityDraftSession Session
@@ -97,8 +98,6 @@
         </div>
     </EditForm>
 
-    <RabbitMqCredentials />
-
     @if (_review is not null)
     {
         <section class="envelope-review" aria-labelledby="review-heading" aria-live="polite">
@@ -181,6 +180,19 @@
             Draft.KeycloakClientId = Configuration["Keycloak:ClientId"] ?? "";
         _context = new(Draft);
         _context.OnFieldChanged += InvalidateReview;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!string.IsNullOrWhiteSpace(Draft.RootAdministratorSubjectId)) return;
+        var store = Services.GetService<IRegistryBootstrapStore>();
+        if (store is null) return;
+        RegistryBootstrapState state;
+        try { state = await store.ReadAsync(default); }
+        catch (FileNotFoundException) { return; }
+        if (state.Phase == RegistryBootstrapPhase.Completed
+            && string.IsNullOrWhiteSpace(Draft.RootAdministratorSubjectId))
+            Draft.RootAdministratorSubjectId = state.SubjectId ?? "";
     }
 
     private void Review()

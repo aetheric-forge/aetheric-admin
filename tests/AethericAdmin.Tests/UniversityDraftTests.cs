@@ -1,6 +1,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
 using Aetheric.Provisioning.Engine;
+using Aetheric.Provisioning.Application;
+using Aetheric.Provisioning.Persistence;
 using AethericAdmin.Web.Components.Provisioning;
 using AethericAdmin.Web.Provisioning;
 using AethericForge.Runtime.Abstractions.Interfaces.Post;
@@ -142,12 +144,38 @@ public sealed class UniversityDraftTests
         Assert.Contains("Review envelope", html);
         Assert.DoesNotContain("Download draft envelope", html);
         Assert.Contains("Draft workspace", html);
-        Assert.Contains("Operations broker (AMQP)", html);
-        Assert.Contains("Campus provisioning (management API)", html);
-        Assert.Contains("Save Operations connection", html);
-        Assert.Contains("Save provisioning credentials", html);
-        Assert.Contains("type=\"password\"", html);
+        Assert.DoesNotContain("RabbitMQ access", html);
+        Assert.DoesNotContain("Save Operations connection", html);
+        Assert.DoesNotContain("Save provisioning credentials", html);
+        Assert.DoesNotContain("type=\"password\"", html);
         Assert.DoesNotContain("Submit to Operations", html); // only appears once a review exists
+    }
+
+    [Theory]
+    [InlineData("", RegistryBootstrapPhase.Completed, "bootstrap-subject")]
+    [InlineData("chosen-subject", RegistryBootstrapPhase.Completed, "chosen-subject")]
+    [InlineData("", RegistryBootstrapPhase.PrincipalSelected, "")]
+    public async Task Setup_defaults_to_completed_bootstrap_administrator_without_overwriting_edits(
+        string initialSubject, RegistryBootstrapPhase phase, string expectedSubject)
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "university-identity-" + Guid.NewGuid().ToString("N"));
+        var store = new FileRegistryBootstrapStore(directory);
+        var settings = new RegistryBootstrapSettings("https://identity.example/realms/forge", "admin", "forge-admin");
+        await store.InitializeAsync(settings);
+        await store.SaveAsync(new(settings, phase, "bootstrap-subject"), default);
+        var session = new UniversityDraftSession();
+        session.Draft.RootAdministratorSubjectId = initialSubject;
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton(session);
+        services.AddSingleton<IRegistryBootstrapStore>(store);
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton<BootstrapResultStore>();
+        await using var provider = services.BuildServiceProvider();
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        await renderer.Dispatcher.InvokeAsync(async () =>
+            await renderer.RenderComponentAsync<UniversitySetup>(ParameterView.Empty));
+        Assert.Equal(expectedSubject, session.Draft.RootAdministratorSubjectId);
     }
 
     private static UniversityDraft ValidDraft() => new()

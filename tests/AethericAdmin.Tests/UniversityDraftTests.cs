@@ -1,5 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json;
+using Aetheric.Provisioning.Components;
+using Aetheric.Provisioning.Components.Terminology;
 using Aetheric.Provisioning.Engine;
 using Aetheric.Provisioning.Application;
 using Aetheric.Provisioning.Persistence;
@@ -126,6 +128,7 @@ public sealed class UniversityDraftTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton<UniversityDraftSession>();
+        services.AddTerminology();
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddSingleton<IRootCredentialStore, NoCredentials>();
         services.AddSingleton<IPostService, UnusedPostService>();
@@ -168,6 +171,7 @@ public sealed class UniversityDraftTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(session);
+        services.AddTerminology();
         services.AddSingleton<IRegistryBootstrapStore>(store);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddSingleton<BootstrapResultStore>();
@@ -176,6 +180,36 @@ public sealed class UniversityDraftTests
         await renderer.Dispatcher.InvokeAsync(async () =>
             await renderer.RenderComponentAsync<UniversitySetup>(ParameterView.Empty));
         Assert.Equal(expectedSubject, session.Draft.RootAdministratorSubjectId);
+    }
+
+    [Fact]
+    public async Task Setup_uses_the_selected_terminology_not_hard_coded_names()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<UniversityDraftSession>();
+        services.AddTerminology();
+        services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
+        services.AddSingleton<IRootCredentialStore, NoCredentials>();
+        services.AddSingleton<IPostService, UnusedPostService>();
+        services.AddSingleton<UniversityBootstrapSubmission>();
+        services.AddSingleton<RabbitMqConnections>();
+        services.AddSingleton<BootstrapResultStore>();
+        await using var provider = services.BuildServiceProvider();
+        await provider.GetRequiredService<TerminologyService>().SaveAsync(new("corporate"));
+        await using var renderer = new HtmlRenderer(provider, provider.GetRequiredService<ILoggerFactory>());
+        var html = await renderer.Dispatcher.InvokeAsync(async () =>
+            (await renderer.RenderComponentAsync<UniversitySetup>(ParameterView.Empty)).ToHtmlString());
+        Assert.Contains("Enterprise name", html);
+        Assert.Contains("OfficeLocation name", html);
+        Assert.Contains("Administration Corporation", html);
+        Assert.Contains("Decisions Division", html);
+        Assert.Contains("Define an Enterprise", html);
+        Assert.DoesNotContain("University name", html);
+        Assert.DoesNotContain("Campus name", html);
+        Assert.DoesNotContain("Faculty name", html);
+        Assert.DoesNotContain("Administration Faculty", html);
+        Assert.DoesNotContain("Within the Campus", html);
     }
 
     private static UniversityDraft ValidDraft() => new()
@@ -199,6 +233,7 @@ public sealed class UniversityDraftTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddSingleton(session);
+        services.AddTerminology();
         services.AddSingleton<IComponentActivator>(activator);
         services.AddSingleton<IConfiguration>(new ConfigurationBuilder().Build());
         services.AddSingleton<IRootCredentialStore, NoCredentials>();

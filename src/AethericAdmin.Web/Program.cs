@@ -168,6 +168,7 @@ builder.Services.AddSingleton<IRootCredentialStore>(new ManagedRootCredentialSto
     builder.Configuration["RootCredentials:Directory"] ?? "data/root-credentials",
     builder.Configuration["RootCredentials:KeyDirectory"] ?? "data/root-key"));
 
+builder.Services.AddAdminTerminology(builder.Configuration);
 builder.Services.AddSingleton(TimeProvider.System);
 
 // Maintenance owns its job and encrypted-credential stores - a keyed client keeps this
@@ -222,6 +223,7 @@ app.MapGet("/setup/readiness", () => Results.Json(new { ready = true })).AllowAn
 app.MapGet("/setup", () => Results.Redirect("/university"));
 app.MapGet("/setup/complete", () => Results.Redirect("/university"));
 
+await app.Services.LoadTerminologyAsync();
 app.Run();
 return;
 }

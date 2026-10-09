@@ -1,25 +1,27 @@
 @using AethericAdmin.Web.Provisioning
 
 <section aria-labelledby="faculty-heading">
-    <p class="eyebrow">03 · Within the Campus</p>
-    <h2 id="faculty-heading">Administration Faculty</h2>
-    <label for="faculty-name">Faculty name</label>
+    <p class="eyebrow">03 · Within the @T.Campus</p>
+    <h2 id="faculty-heading">Administration @T.Faculty</h2>
+    <label for="faculty-name">@T.Faculty name</label>
     <InputText id="faculty-name" @bind-Value="Draft.FacultyName" maxlength="100" />
     <ValidationMessage For="() => Draft.FacultyName" />
     <label for="faculty-profile">Private resource profile reference <span>(optional)</span></label>
     <InputText id="faculty-profile" @bind-Value="Draft.FacultyResourceProfile" maxlength="200" />
-    <p class="hint">The Faculty owns its private resource bundle. Institutions may inherit capabilities without creating another copy of those resources.</p>
+    <p class="hint">The @T.Faculty owns its private resource bundle. @T.InstitutionPlural may inherit capabilities without creating another copy of those resources.</p>
 </section>
 
 <section aria-labelledby="decisions-heading">
     <p class="eyebrow">04 · Within Administration</p>
-    <h2 id="decisions-heading">Decisions Institution</h2>
-    <label for="decisions-name">Institution name</label>
+    <h2 id="decisions-heading">Decisions @T.Institution</h2>
+    <label for="decisions-name">@T.Institution name</label>
     <InputText id="decisions-name" @bind-Value="Draft.DecisionsName" maxlength="100" />
     <ValidationMessage For="() => Draft.DecisionsName" />
-    <p class="hint">Required for this University setup. The existing Decisions definition owns its draft workspace and inherits Archive, Library, Post Office, and Registrar capabilities. Their bindings will be resolved by the provisioner.</p>
+    <p class="hint">Required for this @T.University setup. The existing Decisions definition owns its draft workspace and inherits Archive, Library, Post Office, and Registrar capabilities. Their bindings will be resolved by the provisioner.</p>
 </section>
 
 @code {
+    private Terms T => Terminology.Terms;
+
     [Parameter, EditorRequired] public UniversityDraft Draft { get; set; } = default!;
 }

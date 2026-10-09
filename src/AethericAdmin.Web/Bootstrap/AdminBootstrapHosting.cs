@@ -39,6 +39,7 @@ public static class AdminBootstrapHosting
             builder.Configuration["RootCredentials:Directory"] ?? "data/root-credentials",
             builder.Configuration["RootCredentials:KeyDirectory"] ?? "data/root-key"));
         builder.Services.AddSingleton<IRootConnectionValidator, RootConnectionValidator>();
+        builder.Services.AddAdminTerminology(builder.Configuration);
         builder.Services.AddProvisioningBootstrap(connection);
         builder.Services.AddProvisioningSimulation();
         builder.AddSetupAuthentication(connection, signIn);

@@ -8,13 +8,13 @@
 @inject IServiceProvider Services
 @inject BootstrapResultStore ResultStore
 
-<PageTitle>University setup · Aetheric Admin</PageTitle>
+<PageTitle>@T.University setup · Aetheric Admin</PageTitle>
 
 <main class="university-setup">
     <header>
-        <p class="eyebrow">Provisioning · New University</p>
-        <h1>Give your University a home.</h1>
-        <p>Define a University, its first Campus, and the Administration Faculty that will serve it.</p>
+        <p class="eyebrow">Provisioning · New @T.University</p>
+        <h1>Give your @T.University a home.</h1>
+        <p>Define @Terms.WithArticle(T.University), its first @T.Campus, and the Administration @T.Faculty that will serve it.</p>
     </header>
 
     <div class="setup-notice" role="status">
@@ -29,13 +29,13 @@
             <div class="setup-fields">
                 <section aria-labelledby="university-heading">
                     <p class="eyebrow">01 · Initiating request</p>
-                    <h2 id="university-heading">University</h2>
-                    <label for="university-name">University name</label>
+                    <h2 id="university-heading">@T.University</h2>
+                    <label for="university-name">@T.University name</label>
                     <InputText id="university-name" @bind-Value="Draft.UniversityName" maxlength="100" />
                     <ValidationMessage For="() => Draft.UniversityName" />
                     <label for="university-profile">Private resource profile reference <span>(optional)</span></label>
                     <InputText id="university-profile" @bind-Value="Draft.UniversityResourceProfile" maxlength="200" />
-                    <p class="hint">Reference the University's own resource definition. Leaving this blank keeps the resource bundle undecided.</p>
+                    <p class="hint">Reference the @T.University's own resource definition. Leaving this blank keeps the resource bundle undecided.</p>
 
                     <fieldset>
                         <legend>Root identity &amp; Keycloak</legend>
@@ -60,24 +60,24 @@
                 </section>
 
                 <section aria-labelledby="campus-heading">
-                    <p class="eyebrow">02 · Within the University</p>
-                    <h2 id="campus-heading">First Campus</h2>
-                    <label for="campus-name">Campus name</label>
+                    <p class="eyebrow">02 · Within the @T.University</p>
+                    <h2 id="campus-heading">First @T.Campus</h2>
+                    <label for="campus-name">@T.Campus name</label>
                     <InputText id="campus-name" @bind-Value="Draft.CampusName" maxlength="100" />
                     <ValidationMessage For="() => Draft.CampusName" />
                     <label for="campus-profile">Private resource profile reference <span>(optional)</span></label>
                     <InputText id="campus-profile" @bind-Value="Draft.CampusResourceProfile" maxlength="200" />
-                    <p class="hint">Campus belongs to the University and waits for its provisioning prerequisites.</p>
+                    <p class="hint">@T.Campus belongs to the @T.University and waits for its provisioning prerequisites.</p>
                 </section>
 
                 <FacultyDesigner Draft="Draft" />
             </div>
 
-            <aside aria-label="University structure">
+            <aside aria-label="@T.University structure">
                 <h2>Your structure</h2>
                 <ul class="hierarchy">
-                    <li>@Name(Draft.UniversityName, "University")
-                        <ul><li>@Name(Draft.CampusName, "Campus")
+                    <li>@Name(Draft.UniversityName, T.University)
+                        <ul><li>@Name(Draft.CampusName, T.Campus)
                             <ul><li>@Name(Draft.FacultyName, "Administration")
                                 <ul>
                                     <li>@Name(Draft.DecisionsName, "Decisions")</li>
@@ -90,9 +90,9 @@
                 <dl>
                     <dt>Priority</dt><dd>Standard</dd>
                     <dt>Execution service</dt><dd>Runtime Operations</dd>
-                    <dt>Causal root</dt><dd>University request</dd>
+                    <dt>Causal root</dt><dd>@T.University request</dd>
                 </dl>
-                <p class="hint">Every child request is directly caused by the University request. Parent references describe where it belongs.</p>
+                <p class="hint">Every child request is directly caused by the @T.University request. Parent references describe where it belongs.</p>
                 <button type="submit" class="primary">Review envelope</button>
             </aside>
         </div>
@@ -102,7 +102,7 @@
     {
         <section class="envelope-review" aria-labelledby="review-heading" aria-live="polite">
             <p class="eyebrow">Review · @_review.Requests.Length requests</p>
-            <h2 id="review-heading">One University, one envelope</h2>
+            <h2 id="review-heading">One @T.University, one envelope</h2>
             <p>This is a draft for the provisioner contract, not an executable plan. Resource profiles, IAM definitions,
                 credential resolution, and provider bindings still require runtime validation.</p>
             <div class="table-scroll">
@@ -160,6 +160,7 @@
 
 @code {
     private UniversityDraft Draft => Session.Draft;
+    private Terms T => Terminology.Terms;
     private EditContext _context = default!;
     private UniversityEnvelopeDraft? _review;
     private string? _json;

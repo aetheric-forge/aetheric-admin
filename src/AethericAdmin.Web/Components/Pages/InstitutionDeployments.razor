@@ -1,0 +1,108 @@
+@page "/provisioning/institutions"
+@rendermode InteractiveServer
+@using AethericAdmin.Web.Provisioning
+@using Microsoft.Extensions.DependencyInjection
+@inject IServiceProvider Services
+@inject InstitutionDeploymentResultStore ResultStore
+
+<PageTitle>Institution deployments · Aetheric Admin</PageTitle>
+
+<h1>Institution deployments</h1>
+
+<p>
+    Deploys a pinned institution revision through Operations. Only the listed root credentials are
+    sent from the encrypted store. On success, Operations delivers the institution's scoped
+    configuration to its web host.
+</p>
+
+<table>
+    <thead>
+        <tr><th>Institution</th><th>Revision</th><th>Root credentials</th><th></th></tr>
+    </thead>
+    <tbody>
+        @foreach (var institution in PinnedInstitutions.All)
+        {
+            var submitted = _requests.TryGetValue(institution.Id, out var requestId);
+            <tr>
+                <td>@institution.Name <small>(@institution.Repository)</small></td>
+                <td><code>@institution.Revision[..12]</code></td>
+                <td>@string.Join(", ", institution.RequiredSystems)</td>
+                <td>
+                    <button type="button" disabled="@(_submitting is not null || submitted)" @onclick="() => Submit(institution)">
+                        @(_submitting == institution.Id ? "Submitting…" : submitted ? "Submitted" : "Deploy")
+                    </button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (_error is not null)
+{
+    <p role="alert">@_error</p>
+}
+
+@if (_requests.Count > 0)
+{
+    <div role="status" aria-live="polite">
+        <button type="button" @onclick="StateHasChanged">Check status</button>
+        <ul>
+            @foreach (var (id, requestId) in _requests)
+            {
+                var result = ResultStore.TryGet(requestId);
+                <li>
+                    @PinnedInstitutions.Find(id)?.Name: <code>@requestId</code> —
+                    @if (result is null)
+                    {
+                        <span>waiting for Operations to report a result…</span>
+                    }
+                    else
+                    {
+                        <span>@(result.Succeeded ? "Succeeded" : "Failed") as of @result.CompletedAtUtc.ToString("u")</span>
+                        @if (result.Issues.Count > 0)
+                        {
+                            <ul>
+                                @foreach (var issue in result.Issues)
+                                {
+                                    <li>@issue</li>
+                                }
+                            </ul>
+                        }
+                    }
+                </li>
+            }
+        </ul>
+    </div>
+}
+
+@code {
+    private readonly Dictionary<string, Guid> _requests = new(StringComparer.Ordinal);
+    private string? _submitting;
+    private string? _error;
+
+    private async Task Submit(PinnedInstitution institution)
+    {
+        if (_submitting is not null) return;
+        _submitting = institution.Id;
+        _error = null;
+        try
+        {
+            // Resolved lazily like UniversitySetup: publishing needs a working RabbitMQ Post
+            // provider, which merely viewing this page should not.
+            var deployment = Services.GetRequiredService<PinnedInstitutionDeployment>();
+            _requests[institution.Id] = await deployment.SubmitAsync(institution, default);
+        }
+        catch (PinnedInstitutionDeployment.MissingCredentialException ex)
+        {
+            _error = ex.Message;
+        }
+        catch (Exception)
+        {
+            _error = "Could not submit to Operations. Check the saved RabbitMQ broker connection and that the Operations worker is listening on its virtual host, then retry.";
+        }
+        finally
+        {
+            _submitting = null;
+        }
+    }
+}

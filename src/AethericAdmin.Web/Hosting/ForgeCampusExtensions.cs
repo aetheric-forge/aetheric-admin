@@ -129,6 +129,13 @@ public static class ForgeCampusExtensions
             new BootstrapResultConsumer(bootstrapResultStore));
         services.AddSingleton<UniversityBootstrapSubmission>();
 
+        var institutionResultStore = new InstitutionDeploymentResultStore();
+        services.AddSingleton(institutionResultStore);
+        services.AddPostSubscription(
+            InstitutionDeploymentPost.ResultReference(),
+            new InstitutionDeploymentResultConsumer(institutionResultStore));
+        services.AddSingleton<PinnedInstitutionDeployment>();
+
         return services;
     }
 }

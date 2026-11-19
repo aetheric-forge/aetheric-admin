@@ -12,6 +12,24 @@ namespace AethericAdmin.Tests;
 public sealed class BootstrapConfigurationTests
 {
     [Fact]
+    public async Task Private_admin_endpoint_is_deployment_configured_without_changing_saved_issuer()
+    {
+        var directory = Path.Combine(Path.GetTempPath(), "admin-private-api-" + Guid.NewGuid().ToString("N"));
+        try
+        {
+            var builder = Builder(directory);
+            builder.Configuration["BootstrapConnection:AdminApiBaseAddress"] = "https://admin.internal.example/admin/";
+            await builder.AddAdminBootstrapAsync(initialize: true);
+            await using var provider = builder.Services.BuildServiceProvider();
+            var configuration = provider.GetRequiredService<Aetheric.Provisioning.Components.BootstrapConnectionConfiguration>();
+            Assert.Equal("https://admin.internal.example/admin/", configuration.Options("provisioner", "test-secret").AdminApiBaseAddress);
+            Assert.Equal("https://identity.example/realms/root", configuration.Settings.Issuer);
+            Assert.Equal(configuration.Settings, (await provider.GetRequiredService<IRegistryBootstrapStore>().ReadAsync(default)).Settings);
+        }
+        finally { if (Directory.Exists(directory)) Directory.Delete(directory, true); }
+    }
+
+    [Fact]
     public async Task Startup_requires_explicit_initialization_and_never_reopens_completed_state()
     {
         var directory = Path.Combine(Path.GetTempPath(), "admin-bootstrap-state-" + Guid.NewGuid().ToString("N"));

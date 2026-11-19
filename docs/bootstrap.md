@@ -110,3 +110,15 @@ Automatic startup and routing are smoke-tested by `scripts/smoke-auto-setup.py` 
 Before an administrator is selected, the client ID on `/setup` is editable. Enter an existing Keycloak client's ID and secret; the wizard verifies service-account permissions and Admin API access before saving a changed ID. Failed checks do not change the saved binding. A successful change invalidates previous setup sessions and tickets. Restarting setup uses the saved ID even if the deployment still suggests `provisioner`.
 
 After selecting or creating the administrator, the client ID is read-only and server validation rejects changes. This connection step does not create the initial Keycloak client.
+
+## Private Keycloak Admin API
+
+When public SSO exposes OIDC endpoints but keeps `/admin/` private, configure
+`BootstrapConnection__AdminApiBaseAddress=https://sso-admin.int.blackcircuit.ca/admin/`.
+The deployment owns this setting; it is not an editable setup-form destination.
+Token requests, issuer checks, and browser sign-in retain the public Authority.
+Client verification, administrator lookup/creation, callback registration, and role
+assignment use the private Admin API. The optional endpoint requires HTTPS, the
+`/admin/` path, and no embedded credentials, query, or fragment. Existing
+same-origin deployments can omit it. Preserve saved bootstrap identity and state
+when setting this endpoint; do not switch the issuer to the private hostname.
